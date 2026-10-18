@@ -280,8 +280,19 @@
 /* V9 performance pass: opaque-enough panels do not need costly per-frame backdrop compositing. */
 .story-card,.chapter-navigation,.name-card,.controls-note,.marker,.joystick-base,.interact-shortcut,.discoveries button{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 .story-card{background:linear-gradient(160deg,rgba(44,25,55,.97),rgba(23,15,32,.975))!important}
-.chapter-navigation{background:rgba(31,19,42,.96)!important}
+@media(max-width:740px){.chapter-navigation{background:rgba(31,19,42,.96)!important}}
 /* Do not blur the live 3D canvas while switching chapters. */
 @keyframes chapterReveal{from{opacity:0;transform:translateY(calc(-50% + 9px))}to{opacity:1;transform:translateY(-50%)}}
 @keyframes mobileChapterReveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:740px){.story-card{background:linear-gradient(175deg,#2b1c38f9,#191021fc)!important}}
+
+/* V10 — desktop chapter rail must NOT inherit mobile's opaque background. */
+@media(min-width:741px){
+ .chapter-navigation{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;min-width:145px;z-index:16}
+ .chapter-navigation button{border-radius:999px;padding:9px 12px;min-height:34px;background:transparent!important;transition:background .25s ease,color .25s ease,opacity .25s ease}
+ .chapter-navigation button:hover,.chapter-navigation button:focus-visible{background:rgba(52,30,62,.58)!important;color:#ffe8d7;opacity:1}
+}
+/* The mobile chapter switcher remains a compact pill. */
+@media(max-width:740px){.chapter-navigation{background:rgba(31,19,42,.96)!important;border:1px solid rgba(241,208,226,.14)!important}}
+/* When deliberately dragging, avoid accidental text selection. */
+body.is-looking,body.is-looking *{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important}

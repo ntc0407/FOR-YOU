@@ -1,44 +1,32 @@
-# FOR YOU V9 — Camera continuity & FPS stability
+# FOR YOU V10 — ổn định camera và sửa thanh chọn chương
 
-Một đường link duy nhất, thư cá nhân hóa theo tên người nhận. Phiên bản này cập nhật từ FOR YOU V8.
+Phiên bản V10 tiếp tục V9, giữ nguyên nội dung tri ân, thư cá nhân hóa, một URL chung và giao diện điện thoại V7–V9.
 
-## Sửa trong V9
+## Sửa trong V10
 
-- Camera desktop **luôn nhận chuột khi con trỏ nằm trên bảng/chữ/nút**. Chỉ tạm dừng khi hộp thoại/lá thư đang mở hoặc camera đang chuyển vị trí giữa các chương.
-- Không cần nhấn giữ chuột. Trái → quay trái; phải → quay phải; đưa về vùng giữa → dừng. Dead zone tăng lên 16%, đường cong điều khiển nhẹ và tốc độ góc giới hạn để tránh rung.
-- Giảm chi phí GPU khi render: mức pixel ratio desktop từ 1.25 xuống 1.0, mobile từ 1.0 xuống 0.85; cắt một số mô hình ngoài tầm nhìn.
-- Bỏ cơ chế **tự tăng lại độ phân giải** gây khựng; chỉ giảm tối đa 2 lần nếu FPS thấp kéo dài, sau đó giữ ổn định.
-- Tránh đọc/ghi layout liên tục: cache hình chữ nhật UI, giảm marker updates từ ~12 lần/giây xuống ~7 lần/giây và chỉ cập nhật class/toạ độ nếu cần.
-- Bỏ backdrop blur nặng trên giao diện trong khi WebGL render.
-- Giữ thiết kế mobile của V8 và nội dung lời chúc/lá thư.
+- **Desktop:** thanh chọn chương Hoa / Ánh sáng / Cây tri ân trở lại trong suốt. Sửa CSS gây một khối nền tối hình chữ nhật bên phải.
+- **Camera desktop:** quay lại điều khiển **giữ chuột trái rồi kéo** trên vùng thế giới 3D; kéo phải nhìn phải, kéo trái nhìn trái. Không tự quay khi rê chuột vào bảng hoặc khi con trỏ đứng lệch tâm.
+- **Camera điện thoại:** vẫn vuốt trên vùng 3D để nhìn, dùng joystick để di chuyển.
+- **Hiệu suất:** giữ tối ưu marker và render của V9; dùng chất lượng WebGL cố định (desktop 0.95, mobile 0.8) để tránh các đợt resize framebuffer trong lúc khám phá.
+- **Cache:** đổi tài nguyên thành `?v=10` để trình duyệt nhận bản CSS/JS mới sau khi deploy.
 
-## Cách chạy
+## Chạy thử
 
-Mở folder bằng VS Code, dùng **Live Server** trên `index.html`.
+Mở thư mục bằng VS Code, dùng Live Server để mở `index.html`. Trên desktop nhập tên, bắt đầu, thử WASD; giữ chuột trái và kéo trên vùng cảnh 3D để quan sát.
 
-Để hiện FPS khi chạy trang đã deploy, mở:
+Lưu ý: Không thể kéo bắt đầu **trên bảng và các nút**, vì chúng dùng để chọn nội dung. Bắt đầu kéo từ vùng 3D trống vẫn tiếp tục di chuyển khi con trỏ đi qua bảng.
 
-`https://for-you-lake-beta.vercel.app/?debug=1`
+Khi đã triển khai, thêm `?debug=1` vào link để xem FPS. Trình duyệt thử nghiệm tại đây dùng chế độ đồ họa dự phòng, **chưa xác nhận FPS trên GPU thật**.
 
-Khung nhỏ phía dưới sẽ báo FPS và tỉ lệ render. Mở link bình thường (không có `?debug=1`) sẽ không thấy khung đo.
+## Cập nhật GitHub / Vercel
 
-## Checklist ngắn (nên kiểm tra trên GPU thật)
-
-1. Rê chuột qua giữa bảng bên trái, qua cả nút và vùng văn bản: camera vẫn quay theo chuột.
-2. Đưa chuột về giữa màn hình: camera dừng, không tự trôi.
-3. Quay góc nhìn 360° và vừa dùng WASD vừa quay.
-4. Mở một lời nhắn: camera tạm dừng khi modal đang mở; đóng modal để tiếp tục.
-5. So sánh FPS ở `?debug=1` với V8 và kiểm tra Vercel đã cập nhật bản mới.
-6. Kiểm tra lại trên điện thoại thật.
-
-Đã kiểm tra cú pháp JavaScript và các luồng chính trong Chromium với renderer dự phòng; **chưa đo FPS WebGL trên GPU thật của người dùng**. Không cam kết 60 FPS trên mọi thiết bị.
-
-## Đẩy mã lên GitHub, để Vercel tự cập nhật
-
-Giải nén, chép đè **toàn bộ** file của V9 vào đúng folder Git cũ, không xoá thư mục `.git`. Sau đó:
+1. Giải nén ZIP. Chép đè toàn bộ file vào **thư mục Git cũ**, giữ nguyên `.git`.
+2. Trong VS Code:
 
 ```bash
 git add .
-git commit -m "FOR YOU V9 - Optimize camera and performance"
+git commit -m "FOR YOU V10 - Fix chapter nav and restore stable camera drag"
 git push origin main
 ```
+
+3. Đợi Vercel báo **Ready** và kiểm tra lại website bằng cửa sổ ẩn danh.

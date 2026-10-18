@@ -78,7 +78,7 @@ let art='';if(stage==='intro'){
  }
 return `<svg class="fb-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}<rect width="1400" height="900" fill="url(#glow)"/>${stars}${art}</svg>`}
 class World{
- constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?.85:1.0;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.qualityAdjustments=0;this.qualityLocked=false;this.fpsDisplay=0;this.debugHud=null;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;this.modalLayers=[document.getElementById('message-layer'),document.getElementById('letter-layer')];
+ constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?.8:.95;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.qualityAdjustments=0;this.qualityLocked=true;this.fpsDisplay=0;this.debugHud=null;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;this.modalLayers=[document.getElementById('message-layer'),document.getElementById('letter-layer')];
   try{this.gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false,powerPreference:'high-performance'})||canvas.getContext('experimental-webgl');if(this.gl)this.initGL()}catch(e){console.warn('WebGL unavailable; using artistic fallback',e);this.gl=null}
   this.fallbackMode=!this.gl;this.fallback.classList.toggle('active',this.fallbackMode);if(this.fallbackMode){canvas.style.display='none';this.setFallback('intro')}
   this.canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.gl=null;this.fallbackMode=true;this.canvas.style.display='none';this.fallback.classList.add('active');this.setFallback(this.stage)});
@@ -88,51 +88,42 @@ class World{
  const points=program(gl,PVERT,PFRAG);this.pointProg={p:points,attrs:[gl.getAttribLocation(points,'p'),gl.getAttribLocation(points,'misc')],uniform:{vp:gl.getUniformLocation(points,'vp'),camera:gl.getUniformLocation(points,'camera'),time:gl.getUniformLocation(points,'time'),density:gl.getUniformLocation(points,'density')}};this.particle=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.bufferData(gl.ARRAY_BUFFER,this.model.points,gl.STATIC_DRAW);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0)
  }
  initEvents(){
-  const finePointer=matchMedia('(hover: hover) and (pointer: fine)');
-  // HTML story panels sit above the canvas. Listen at document level so that
-  // moving over the visible 3D area still reaches the camera controller.
-  // Only touch drags avoid buttons/panels; mouse gaze works everywhere (including story-card).
-  const isTouchUI=e=>Boolean(e.target?.closest?.('.site-header,.story-card,.chapter-navigation,.joystick,.interact-shortcut,.marker,.controls-note,.dialog-layer,.letter-layer,button,input,textarea,select,a'));
-  const setGaze=e=>{
-   // Use viewport coordinates even if WebGL is unavailable and the canvas is hidden.
-   const width=this.width||window.innerWidth,height=this.height||window.innerHeight;
-   const nx=clamp((e.clientX-width*.5)/(width*.5),-1,1);
-   const ny=clamp((e.clientY-height*.5)/(height*.5),-1,1);
-   const deadzone=.16; // Prevent micro-movements near screen center.
-   const curve=v=>Math.sign(v)*Math.pow(Math.max(0,(Math.abs(v)-deadzone)/(1-deadzone)),1.45);
-   this.steerX=curve(nx);
-   this.steerY=curve(ny);
-   this.steerActive=true;
+  // V10: explicit click-and-drag. An idle mouse never changes camera heading.
+  // The old automatic gaze was distracting on desktop and exposed frame stutter.
+  const interactive=e=>Boolean(e.target?.closest?.('.site-header,.story-card,.chapter-navigation,.joystick,.interact-shortcut,.marker,.controls-note,.dialog-layer,.letter-layer,button,input,textarea,select,a'));
+  const stopDrag=e=>{
+   if(!this.dragging)return;
+   if(e&&this.dragPointerId!==e.pointerId)return;
+   this.dragging=false;
+   try{this.dragTarget?.releasePointerCapture?.(this.dragPointerId)}catch{}
+   this.dragTarget=null;
+   this.dragPointerId=null;
+   document.body.classList.remove('is-looking');
   };
-  const resetGaze=()=>{this.steerActive=false;this.steerX=0;this.steerY=0};
   document.addEventListener('pointerdown',e=>{
-   if(!this.started||this.focus)return;
-   if(e.pointerType==='mouse'&&finePointer.matches){setGaze(e);return}
-   if(isTouchUI(e))return;
-   this.dragging=true;this.pointer=[e.clientX,e.clientY];
-   this.touchTarget=e.target;
-   try{this.touchTarget.setPointerCapture?.(e.pointerId)}catch{}
+   if(!this.started||this.focus||interactive(e)||e.button!==0)return;
+   if(this.modalLayers.some(el=>el&&!el.classList.contains('hidden')))return;
+   this.dragging=true;
+   this.dragPointerId=e.pointerId;
+   this.dragTarget=e.target;
+   this.pointer=[e.clientX,e.clientY];
+   try{this.dragTarget.setPointerCapture?.(e.pointerId)}catch{}
+   if(e.pointerType==='mouse'){
+    document.body.classList.add('is-looking');
+    e.preventDefault();
+   }
   });
   document.addEventListener('pointermove',e=>{
-   if(!this.started||this.focus)return;
-   if(e.pointerType==='mouse'&&finePointer.matches){
-    // Document listener sees movements even when the pointer is over a card/button.
-    // Modal display pauses camera via update(), not by discarding mouse input.
-    setGaze(e);return;
-   }
-   if(!this.dragging)return;
+   if(!this.started||!this.dragging||e.pointerId!==this.dragPointerId)return;
+   if(this.modalLayers.some(el=>el&&!el.classList.contains('hidden')))return stopDrag();
    const dx=e.clientX-this.pointer[0],dy=e.clientY-this.pointer[1];
-   // Touch: finger drag moves the viewed scene naturally (mobile unchanged).
-   this.targetYaw-=dx*.0045;
-   this.targetPitch=clamp(this.targetPitch-dy*.0035,-Math.PI/3,Math.PI/3);
+   // Mouse right -> look right. Touch dragging remains in the familiar direction.
+   this.targetYaw+=(e.pointerType==='mouse'?1:-1)*dx*.0042;
+   this.targetPitch=clamp(this.targetPitch-dy*.0033,-Math.PI/3,Math.PI/3);
    this.pointer=[e.clientX,e.clientY];
   });
-  const up=e=>{
-   if(this.dragging){this.dragging=false;try{this.touchTarget?.releasePointerCapture?.(e.pointerId)}catch{}}
-  };
-  document.addEventListener('pointerup',up);
-  document.addEventListener('pointercancel',up);
-  document.addEventListener('pointerout',e=>{if(e.pointerType==='mouse'&&!e.relatedTarget)resetGaze()});
+  document.addEventListener('pointerup',stopDrag);
+  document.addEventListener('pointercancel',stopDrag);
   window.addEventListener('keydown',e=>{
    if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;
    if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
@@ -140,13 +131,12 @@ class World{
    }
   });
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
-  window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};resetGaze()});
-  // Let the interface receive clicks while the document-level controller steers.
+  window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};stopDrag()});
   this.canvas.style.pointerEvents='none';
  }
- start(){this.started=true;this.canvas.style.pointerEvents='none';this.steerActive=false;this.steerX=0;this.steerY=0;this.flyTo(0)}
+ start(){this.started=true;this.canvas.style.pointerEvents='none';this.dragging=false;this.flyTo(0)}
  flyTo(chapter){const mobile=matchMedia('(max-width:740px)').matches;const destinations=[[0,3.8,-11.8],[0,4,-46],[0,4.8,-78]];const looks=[[0,1.9,-29],[0,4.9,-62],[0,7.6,-92]];let dest=destinations[chapter],target=looks[chapter];if(mobile){dest=[0,4.2,chapter===0?-12.5:chapter===1?-47:-79]}
- const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.steerActive=false;this.steerX=0;this.steerY=0;this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:2000};this.setStage(['garden','lights','tree'][chapter]);
+ const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.dragging=false;document.body.classList.remove('is-looking');this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:2000};this.setStage(['garden','lights','tree'][chapter]);
  }
  celebrate(){this.blooming=true;}
  setStage(stage){this.stage=stage;if(this.fallbackMode)this.setFallback(stage)}
@@ -157,14 +147,7 @@ class World{
  update(dt,ms){
  const modalOpen=this.modalLayers.some(el=>el&&!el.classList.contains('hidden'));
  if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!modalOpen;if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
- // Cursor steering: neutral at screen center; continuous and reversible 360° pan.
- // Positive horizontal input increases yaw (look right), negative looks left.
- const canSteer=this.started&&!this.mobile&&!this.focus&&this.steerActive&&!modalOpen;
- if(canSteer){
-  // Lower angular acceleration, stable across 60/120/144Hz displays.
-  this.targetYaw+=this.steerX*dt*1.05;
-  this.targetPitch=clamp(this.targetPitch-this.steerY*dt*.68,-Math.PI/3,Math.PI/3);
- }
+ // Camera stays still unless the user deliberately drags or moves with WASD.
  // Time-based exponential damping, consistent on 60/120/144Hz screens.
  const smooth=1-Math.exp(-7.8*dt);
  this.yaw+=(this.targetYaw-this.yaw)*smooth;
