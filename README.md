@@ -1,28 +1,44 @@
-# FOR YOU · V8 — Camera & performance update
+# FOR YOU V9 — Camera continuity & FPS stability
 
-Website 3D tri ân ngày 20/10, sử dụng một link chung cho tất cả người nhận.
+Một đường link duy nhất, thư cá nhân hóa theo tên người nhận. Phiên bản này cập nhật từ FOR YOU V8.
 
-## Sửa lỗi ở V8
+## Sửa trong V9
 
-- **Điều khiển camera desktop:** đưa con trỏ sang bên trái màn hình → nhìn sang trái; đưa sang phải → nhìn sang phải. Đưa về gần giữa màn hình → camera ngừng tự quay. Không cần giữ chuột; để con trỏ ở một bên đủ lâu sẽ xoay được 360°. Camera tạm dừng tự quay khi đang tương tác với bảng, nút hoặc hộp thoại.
-- **Sửa sự kiện chuột:** ở bản trước phần giao diện che canvas nên nó không nhận được đầy đủ các sự kiện trỏ chuột. V8 bắt sự kiện ở vùng khám phá của trang và bỏ qua những điều khiển UI.
-- **Mượt hơn:** nội suy góc quay với hàm giảm chấn theo thời gian, giảm độ phân giải WebGL ban đầu, tự giảm độ phân giải nếu FPS thấp liên tục và hồi phục có kiểm soát nếu FPS ổn định. Giảm hiệu ứng blur của các khối giao diện lớn.
-- **Không thay đổi bố cục V7**, vẫn có bottom sheet điện thoại, joystick, thư cá nhân hóa và xuất thiệp PNG.
+- Camera desktop **luôn nhận chuột khi con trỏ nằm trên bảng/chữ/nút**. Chỉ tạm dừng khi hộp thoại/lá thư đang mở hoặc camera đang chuyển vị trí giữa các chương.
+- Không cần nhấn giữ chuột. Trái → quay trái; phải → quay phải; đưa về vùng giữa → dừng. Dead zone tăng lên 16%, đường cong điều khiển nhẹ và tốc độ góc giới hạn để tránh rung.
+- Giảm chi phí GPU khi render: mức pixel ratio desktop từ 1.25 xuống 1.0, mobile từ 1.0 xuống 0.85; cắt một số mô hình ngoài tầm nhìn.
+- Bỏ cơ chế **tự tăng lại độ phân giải** gây khựng; chỉ giảm tối đa 2 lần nếu FPS thấp kéo dài, sau đó giữ ổn định.
+- Tránh đọc/ghi layout liên tục: cache hình chữ nhật UI, giảm marker updates từ ~12 lần/giây xuống ~7 lần/giây và chỉ cập nhật class/toạ độ nếu cần.
+- Bỏ backdrop blur nặng trên giao diện trong khi WebGL render.
+- Giữ thiết kế mobile của V8 và nội dung lời chúc/lá thư.
 
-## Chạy thử
+## Cách chạy
 
-Trong VS Code, mở `index.html` bằng Live Server. Di chuột qua vùng không gian 3D, không cần giữ nút. Di chuột về giữa màn hình để dừng xoay. Dùng `W A S D` để đi.
+Mở folder bằng VS Code, dùng **Live Server** trên `index.html`.
 
-**Lưu ý:** cảm giác mượt thực tế còn phụ thuộc GPU, driver, trình duyệt và thiết bị. Hãy kiểm tra hiệu suất WebGL trên máy bạn; không thể cam kết FPS cố định ở mọi máy.
+Để hiện FPS khi chạy trang đã deploy, mở:
 
-## Cập nhật GitHub & Vercel
+`https://for-you-lake-beta.vercel.app/?debug=1`
 
-Giải nén rồi chép đè **tất cả file** vào đúng thư mục dự án đã kết nối GitHub, giữ nguyên `.git`. Chạy:
+Khung nhỏ phía dưới sẽ báo FPS và tỉ lệ render. Mở link bình thường (không có `?debug=1`) sẽ không thấy khung đo.
+
+## Checklist ngắn (nên kiểm tra trên GPU thật)
+
+1. Rê chuột qua giữa bảng bên trái, qua cả nút và vùng văn bản: camera vẫn quay theo chuột.
+2. Đưa chuột về giữa màn hình: camera dừng, không tự trôi.
+3. Quay góc nhìn 360° và vừa dùng WASD vừa quay.
+4. Mở một lời nhắn: camera tạm dừng khi modal đang mở; đóng modal để tiếp tục.
+5. So sánh FPS ở `?debug=1` với V8 và kiểm tra Vercel đã cập nhật bản mới.
+6. Kiểm tra lại trên điện thoại thật.
+
+Đã kiểm tra cú pháp JavaScript và các luồng chính trong Chromium với renderer dự phòng; **chưa đo FPS WebGL trên GPU thật của người dùng**. Không cam kết 60 FPS trên mọi thiết bị.
+
+## Đẩy mã lên GitHub, để Vercel tự cập nhật
+
+Giải nén, chép đè **toàn bộ** file của V9 vào đúng folder Git cũ, không xoá thư mục `.git`. Sau đó:
 
 ```bash
 git add .
-git commit -m "FOR YOU V8 - Correct mouse look and optimize performance"
+git commit -m "FOR YOU V9 - Optimize camera and performance"
 git push origin main
 ```
-
-Vercel sẽ tự deploy nếu dự án đã kết nối GitHub. Kiểm tra trạng thái Ready và mở lại trang bằng tab ẩn danh để tránh cache.

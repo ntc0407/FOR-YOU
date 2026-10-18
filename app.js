@@ -84,9 +84,67 @@ function downloadLetter(){const info=letter(),canvas=document.createElement('can
  const max=1130,wrap=(str)=>{const words=str.split(/\s+/),rows=[];let line='';for(const word of words){const test=line?line+' '+word:word;if(line&&c.measureText(test).width>max){rows.push(line);line=word}else line=test}if(line)rows.push(line);return rows};let fs=29,lh=53,sections=[];while(fs>=18){c.font=`${fs}px Georgia`;sections=info.paragraphs.map(wrap);const required=sections.reduce((s,lines)=>s+lines.length*lh+33,0);if(required<=1280)break;fs--;lh-=1.1}let y=421;c.fillStyle='#503d4d';c.font=`${fs}px Georgia`;for(const lines of sections){for(const l of lines){c.fillText(l,135,y);y+=lh}y+=33}c.font='italic 29px Georgia';c.fillStyle='#95677e';c.textAlign='right';c.fillText(info.sign,1265,Math.max(1700,y+50));c.strokeStyle='#d6adc1';c.beginPath();c.moveTo(430,1780);c.lineTo(970,1780);c.stroke();c.textAlign='center';c.font='bold 16px Arial';c.fillStyle='#9c7c95';c.fillText('DÀNH CHO BẠN · KHÔNG CHỈ RIÊNG NGÀY 20/10',700,1830);
  canvas.toBlob(blob=>{if(!blob){toast('Không tạo được ảnh, hãy thử lại.');return}let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='FOR-YOU-'+info.name.replace(/[^\p{L}\p{N}-]+/gu,'-')+'.png';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);toast('Bức thư PNG đã được tạo ♡')},'image/png');}
 async function share(){let url=location.protocol==='file:'?'':location.origin+location.pathname;try{if(url&&navigator.share){await navigator.share({title:'FOR YOU · 20/10',text:'Một khu vườn nhỏ và một bức thư đang chờ bạn ♡',url});return}if(url&&navigator.clipboard?.writeText){await navigator.clipboard.writeText(url);toast('Đã sao chép một link chung FOR YOU ♡');return}if(url){let el=document.createElement('textarea');el.value=url;el.style.position='fixed';el.style.opacity='0';document.body.append(el);el.select();document.execCommand('copy');el.remove();toast('Đã sao chép link chung ♡')}else toast('Khi xuất bản lên Vercel, nút này sẽ chia sẻ link website của bạn.')}catch(err){if(err.name!=='AbortError')toast('Hãy sao chép đường dẫn trên thanh địa chỉ để chia sẻ.')}}
-function updateMarkers(w){if(!state.started)return;const isMobile=matchMedia('(max-width:740px)').matches,modalOpen=!$('#message-layer').classList.contains('hidden')||!$('#letter-layer').classList.contains('hidden');const cardRect=$('#story-card')?.getBoundingClientRect(),navRect=$('.chapter-navigation')?.getBoundingClientRect(),helpRect=$('#controls-note')?.classList.contains('hidden')?null:$('#controls-note')?.getBoundingClientRect(),headerRect=$('.site-header')?.getBoundingClientRect();const overlaps=(p,rect,pad=12)=>rect&&p.x>rect.left-pad&&p.x<rect.right+pad&&p.y>rect.top-pad&&p.y<rect.bottom+pad;const candidates=[];items.forEach(it=>{const el=it.el;el.classList.remove('show','near');if(it.chapter!==state.chapter||modalOpen)return;let p;if(w.fallbackMode){const order=it.id==='letter'?0:Number(it.id.split('-')[1]);const coords=state.chapter===0?[[.54,.31],[.62,.46],[.71,.32],[.49,.57],[.68,.58],[.8,.52]]:state.chapter===1?[[.43,.35],[.58,.55],[.65,.26],[.77,.52],[.82,.35]]:[[.65,.41]];const pos=coords[order];p={x:w.width*pos[0],y:w.height*pos[1],d:8}}else p=w.project(it.point);if(!p||p.d>48)return;if(overlaps(p,headerRect,14)||overlaps(p,navRect,isMobile?10:16)||overlaps(p,helpRect,10)||overlaps(p,cardRect,isMobile?16:22))return;if(isMobile&&p.y>w.height*.47)return;const done=it.chapter===0?state.flowers.has(Number(it.id.split('-')[1])):it.chapter===1?state.lights.has(Number(it.id.split('-')[1])):state.letterOpened;candidates.push({it,p,done})});candidates.sort((a,b)=>(Number(a.done)-Number(b.done))||(a.p.d-b.p.d));const chosen=[];for(const cand of candidates){if(isMobile&&chosen.length>=1)break;if(!isMobile&&chosen.length>=4)break;if(chosen.some(other=>Math.hypot(other.p.x-cand.p.x,other.p.y-cand.p.y)<(isMobile?90:78)))continue;chosen.push(cand)}let nearest=chosen[0]?.it||null;items.forEach(it=>{const chosenItem=chosen.find(c=>c.it===it);if(!chosenItem)return;const el=it.el,p=chosenItem.p;el.style.left=`${p.x}px`;el.style.top=`${p.y}px`;el.classList.add('show');el.classList.toggle('done',chosenItem.done);el.classList.toggle('near',it===nearest)});let button=$('#interact');button.classList.toggle('visible',!!nearest);if(nearest){button.dataset.id=nearest.id;button.querySelector('span').textContent=nearest.name==='Bức thư'?'Mở thư':nearest.name}}
+// Cache UI regions and do not remove+re-add classes on every marker tick.
+// Repeated getBoundingClientRect() followed by writes was causing style/layout thrash.
+let rectCache=null,rectCacheAt=0;
+function markerRects(now){
+ if(rectCache&&now-rectCacheAt<450)return rectCache;
+ const help=$('#controls-note');
+ rectCache={
+  card:$('#story-card').getBoundingClientRect(),
+  nav:$('.chapter-navigation').getBoundingClientRect(),
+  help:help.classList.contains('hidden')?null:help.getBoundingClientRect(),
+  header:$('.site-header').getBoundingClientRect()
+ };
+ rectCacheAt=now;return rectCache;
+}
+function updateMarkers(w){
+ if(!state.started)return;
+ const isMobile=w.mobile;
+ const modalOpen=!$('#message-layer').classList.contains('hidden')||!$('#letter-layer').classList.contains('hidden');
+ const rects=markerRects(performance.now());
+ const overlaps=(p,rect,pad=12)=>rect&&p.x>rect.left-pad&&p.x<rect.right+pad&&p.y>rect.top-pad&&p.y<rect.bottom+pad;
+ const candidates=[];
+ for(const it of items){
+  if(it.chapter!==state.chapter||modalOpen)continue;
+  let p;
+  if(w.fallbackMode){
+   const order=it.id==='letter'?0:Number(it.id.split('-')[1]);
+   const coords=state.chapter===0?[[.54,.31],[.62,.46],[.71,.32],[.49,.57],[.68,.58],[.8,.52]]:state.chapter===1?[[.43,.35],[.58,.55],[.65,.26],[.77,.52],[.82,.35]]:[[.65,.41]];
+   const pos=coords[order];p={x:w.width*pos[0],y:w.height*pos[1],d:8};
+  }else p=w.project(it.point);
+  if(!p||p.d>48||overlaps(p,rects.header,14)||overlaps(p,rects.nav,isMobile?10:16)||overlaps(p,rects.help,10)||overlaps(p,rects.card,isMobile?16:22)||isMobile&&p.y>w.height*.47)continue;
+  const done=it.chapter===0?state.flowers.has(Number(it.id.split('-')[1])):it.chapter===1?state.lights.has(Number(it.id.split('-')[1])):state.letterOpened;
+  candidates.push({it,p,done});
+ }
+ candidates.sort((a,b)=>(Number(a.done)-Number(b.done))||(a.p.d-b.p.d));
+ const chosen=[];
+ for(const cand of candidates){
+  if(chosen.length>=(isMobile?1:3))break;
+  if(chosen.some(other=>Math.hypot(other.p.x-cand.p.x,other.p.y-cand.p.y)<(isMobile?90:78)))continue;
+  chosen.push(cand);
+ }
+ const nearest=chosen[0]?.it||null;
+ for(const it of items){
+  const hit=chosen.find(c=>c.it===it),el=it.el;
+  if(!hit){if(el.classList.contains('show'))el.classList.remove('show','near');continue}
+  const x=Math.round(hit.p.x),y=Math.round(hit.p.y);
+  if(it.lastX===undefined||Math.abs(it.lastX-x)>=3||Math.abs(it.lastY-y)>=3){
+   el.style.left=x+'px';el.style.top=y+'px';it.lastX=x;it.lastY=y;
+  }
+  el.classList.toggle('show',true);
+  el.classList.toggle('done',Boolean(hit.done));
+  el.classList.toggle('near',it===nearest);
+ }
+ const button=$('#interact');
+ button.classList.toggle('visible',!!nearest);
+ if(nearest&&button.dataset.id!==nearest.id){
+  button.dataset.id=nearest.id;
+  button.querySelector('span').textContent=nearest.name==='Bức thư'?'Mở thư':nearest.name;
+ }
+}
 let lastMarkerTick=0;
-world.onTick=w=>{if(state.started){const now=performance.now();if(now-lastMarkerTick>85){lastMarkerTick=now;updateMarkers(w)}if(!w.focus){const z=w.pos[2],nextZone=z< -74?2:z< -43?1:0;if(nextZone!==state.chapter&&Math.abs(z-(nextZone===1?-43:-74))>2){chapterTo(nextZone,false)}}}};
+world.onTick=w=>{if(state.started){const now=performance.now();if(now-lastMarkerTick>145){lastMarkerTick=now;updateMarkers(w)}if(!w.focus){const z=w.pos[2],nextZone=z< -74?2:z< -43?1:0;if(nextZone!==state.chapter&&Math.abs(z-(nextZone===1?-43:-74))>2){chapterTo(nextZone,false)}}}};
 let ctx=null,soundTimer=null,soundIndex=0;function note(frequency,start,duration=.7,volume=.018){if(!ctx)return;const osc=ctx.createOscillator(),g=ctx.createGain();osc.type='sine';osc.frequency.value=frequency;g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(volume,start+.04);g.gain.exponentialRampToValueAtTime(.0001,start+duration);osc.connect(g).connect(ctx.destination);osc.start(start);osc.stop(start+duration+.02)}function chime(){if(!state.sound||!ctx)return;[523.25,659.25,783.99].forEach((f,i)=>note(f,ctx.currentTime+i*.15,.95,.022))}async function toggleSound(){if(state.sound){state.sound=false;clearInterval(soundTimer);$('#sound').setAttribute('aria-pressed','false');$('#sound').setAttribute('aria-label','Bật âm thanh');return}try{ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();await ctx.resume();state.sound=true;$('#sound').setAttribute('aria-pressed','true');$('#sound').setAttribute('aria-label','Tắt âm thanh');chime();soundTimer=setInterval(()=>{if(document.hidden)return;const melody=[329.63,392,440,523.25,587.33,659.25,783.99];note(melody[soundIndex++%melody.length],ctx.currentTime,1,.011)},1350)}catch{toast('Thiết bị này không cho phép phát âm thanh.')}}
 $('#start-form').addEventListener('submit',enter);$('#recipient').addEventListener('input',()=>$('#name-error').textContent='');$$('[data-wish]').forEach(b=>b.addEventListener('click',()=>{state.wish=b.dataset.wish;$$('[data-wish]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))}));$('#sound').addEventListener('click',toggleSound);$('#share').addEventListener('click',share);$('#next-chapter').addEventListener('click',next);$$('[data-chapter]').forEach(b=>b.addEventListener('click',()=>chapterTo(Number(b.dataset.chapter),true)));$('#discoveries').addEventListener('click',e=>{const b=e.target.closest('[data-discover]');if(b)discover(items.find(it=>it.chapter===state.chapter&&it.id.endsWith('-'+b.dataset.discover)))});$('#interact').addEventListener('click',()=>{const it=items.find(x=>x.id===$('#interact').dataset.id);if(it)discover(it)});
 for(const layer of [$('#letter-layer'),$('#message-layer')]){layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-close]')){cleanClose();return}if(e.target.closest('[data-open]')){openLetter(true);return}if(e.target.closest('[data-download]')){downloadLetter();return}if(e.target.closest('[data-share]')){share()}})}document.addEventListener('keydown',e=>{if(e.code==='Escape')cleanClose();if(!state.started||!$('#message-layer').classList.contains('hidden')||!$('#letter-layer').classList.contains('hidden'))return;if(e.code==='KeyE'){const it=items.find(x=>x.id===$('#interact').dataset.id);if(it)discover(it)}});

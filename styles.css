@@ -276,3 +276,12 @@
   .chapter-navigation{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .story-card.expanded{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
 }
+
+/* V9 performance pass: opaque-enough panels do not need costly per-frame backdrop compositing. */
+.story-card,.chapter-navigation,.name-card,.controls-note,.marker,.joystick-base,.interact-shortcut,.discoveries button{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.story-card{background:linear-gradient(160deg,rgba(44,25,55,.97),rgba(23,15,32,.975))!important}
+.chapter-navigation{background:rgba(31,19,42,.96)!important}
+/* Do not blur the live 3D canvas while switching chapters. */
+@keyframes chapterReveal{from{opacity:0;transform:translateY(calc(-50% + 9px))}to{opacity:1;transform:translateY(-50%)}}
+@keyframes mobileChapterReveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:740px){.story-card{background:linear-gradient(175deg,#2b1c38f9,#191021fc)!important}}

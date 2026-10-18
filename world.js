@@ -78,11 +78,11 @@ let art='';if(stage==='intro'){
  }
 return `<svg class="fb-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}<rect width="1400" height="900" fill="url(#glow)"/>${stars}${art}</svg>`}
 class World{
- constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?1.0:1.25;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.fpsCooldown=0;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;
+ constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?.85:1.0;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.qualityAdjustments=0;this.qualityLocked=false;this.fpsDisplay=0;this.debugHud=null;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;this.modalLayers=[document.getElementById('message-layer'),document.getElementById('letter-layer')];
   try{this.gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false,powerPreference:'high-performance'})||canvas.getContext('experimental-webgl');if(this.gl)this.initGL()}catch(e){console.warn('WebGL unavailable; using artistic fallback',e);this.gl=null}
   this.fallbackMode=!this.gl;this.fallback.classList.toggle('active',this.fallbackMode);if(this.fallbackMode){canvas.style.display='none';this.setFallback('intro')}
   this.canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.gl=null;this.fallbackMode=true;this.canvas.style.display='none';this.fallback.classList.add('active');this.setFallback(this.stage)});
-  this.initEvents();this.resize();this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);document.addEventListener('visibilitychange',()=>{this.paused=document.hidden;this.last=0});this.step=this.step.bind(this);this.raf=requestAnimationFrame(this.step);
+  this.initEvents();this.resize();this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);document.addEventListener('visibilitychange',()=>{this.paused=document.hidden;this.last=0});if(new URLSearchParams(location.search).get('debug')==='1'){const hud=document.createElement('output');hud.id='foryou-fps';hud.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;background:#140e20dc;color:#ffe8dd;padding:8px 12px;border-radius:9px;font:12px system-ui;pointer-events:none';hud.textContent='Đang đo FPS…';document.body.append(hud);this.debugHud=hud;}this.step=this.step.bind(this);this.raf=requestAnimationFrame(this.step);
  }
  initGL(){const gl=this.gl;const p=program(gl,VERT,FRAG);this.mainProg={p,attrs:['p','n','col'].map(s=>gl.getAttribLocation(p,s)),uniform:{vp:gl.getUniformLocation(p,'vp'),camera:gl.getUniformLocation(p,'camera'),time:gl.getUniformLocation(p,'time'),pulse:gl.getUniformLocation(p,'pulse'),kind:gl.getUniformLocation(p,'kind')}};this.buffers={};for(const [name,mesh] of Object.entries(this.model.meshes)){const buffers=[mesh.positions,mesh.normals,mesh.colors].map(arr=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);return b});this.buffers[name]={buffers,count:mesh.count}}
  const points=program(gl,PVERT,PFRAG);this.pointProg={p:points,attrs:[gl.getAttribLocation(points,'p'),gl.getAttribLocation(points,'misc')],uniform:{vp:gl.getUniformLocation(points,'vp'),camera:gl.getUniformLocation(points,'camera'),time:gl.getUniformLocation(points,'time'),density:gl.getUniformLocation(points,'density')}};this.particle=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.bufferData(gl.ARRAY_BUFFER,this.model.points,gl.STATIC_DRAW);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0)
@@ -91,22 +91,24 @@ class World{
   const finePointer=matchMedia('(hover: hover) and (pointer: fine)');
   // HTML story panels sit above the canvas. Listen at document level so that
   // moving over the visible 3D area still reaches the camera controller.
-  const isUI=e=>Boolean(e.target?.closest?.('.site-header,.story-card,.chapter-navigation,.joystick,.interact-shortcut,.marker,.controls-note,.dialog-layer,.letter-layer,button,input,textarea,select,a'));
+  // Only touch drags avoid buttons/panels; mouse gaze works everywhere (including story-card).
+  const isTouchUI=e=>Boolean(e.target?.closest?.('.site-header,.story-card,.chapter-navigation,.joystick,.interact-shortcut,.marker,.controls-note,.dialog-layer,.letter-layer,button,input,textarea,select,a'));
   const setGaze=e=>{
    // Use viewport coordinates even if WebGL is unavailable and the canvas is hidden.
    const width=this.width||window.innerWidth,height=this.height||window.innerHeight;
    const nx=clamp((e.clientX-width*.5)/(width*.5),-1,1);
    const ny=clamp((e.clientY-height*.5)/(height*.5),-1,1);
-   const deadzone=.09;
-   const curve=v=>Math.sign(v)*Math.pow(Math.max(0,(Math.abs(v)-deadzone)/(1-deadzone)),1.22);
+   const deadzone=.16; // Prevent micro-movements near screen center.
+   const curve=v=>Math.sign(v)*Math.pow(Math.max(0,(Math.abs(v)-deadzone)/(1-deadzone)),1.45);
    this.steerX=curve(nx);
    this.steerY=curve(ny);
    this.steerActive=true;
   };
   const resetGaze=()=>{this.steerActive=false;this.steerX=0;this.steerY=0};
   document.addEventListener('pointerdown',e=>{
-   if(!this.started||this.focus||isUI(e))return;
+   if(!this.started||this.focus)return;
    if(e.pointerType==='mouse'&&finePointer.matches){setGaze(e);return}
+   if(isTouchUI(e))return;
    this.dragging=true;this.pointer=[e.clientX,e.clientY];
    this.touchTarget=e.target;
    try{this.touchTarget.setPointerCapture?.(e.pointerId)}catch{}
@@ -114,7 +116,8 @@ class World{
   document.addEventListener('pointermove',e=>{
    if(!this.started||this.focus)return;
    if(e.pointerType==='mouse'&&finePointer.matches){
-    if(isUI(e)){resetGaze();return}
+    // Document listener sees movements even when the pointer is over a card/button.
+    // Modal display pauses camera via update(), not by discarding mouse input.
     setGaze(e);return;
    }
    if(!this.dragging)return;
@@ -151,23 +154,29 @@ class World{
  resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;if(w<=0||h<=0)return;const dpr=Math.min(window.devicePixelRatio||1,this.quality)*this.renderScale,cw=Math.max(1,Math.floor(w*dpr)),ch=Math.max(1,Math.floor(h*dpr));if(this.canvas.width!==cw||this.canvas.height!==ch){this.canvas.width=cw;this.canvas.height=ch}this.width=w;this.height=h;if(this.gl)this.gl.viewport(0,0,cw,ch);this.mvp=this.makeMVP()}
  makeMVP(){let aim=[this.pos[0]+Math.sin(this.yaw)*Math.cos(this.pitch),this.pos[1]+Math.sin(this.pitch),this.pos[2]-Math.cos(this.yaw)*Math.cos(this.pitch)];return mul(perspective((this.mobile?70:63)*Math.PI/180,this.width/this.height),lookAt(this.pos,aim))}
  project(point){const m=this.mvp;if(!m)return null;const [x,y,z]=point,cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<.25)return null;let nx=cx/cw,ny=cy/cw;if(Math.abs(nx)>1.2||Math.abs(ny)>1.25)return null;return {x:(nx+1)*this.width/2,y:(1-ny)*this.height/2,d:Math.hypot(this.pos[0]-x,this.pos[1]-y,this.pos[2]-z)}}
- update(dt,ms){if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)');if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
+ update(dt,ms){
+ const modalOpen=this.modalLayers.some(el=>el&&!el.classList.contains('hidden'));
+ if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!modalOpen;if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
  // Cursor steering: neutral at screen center; continuous and reversible 360° pan.
  // Positive horizontal input increases yaw (look right), negative looks left.
- const canSteer=this.started&&!this.mobile&&!this.focus&&this.steerActive&&
-  !document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)');
+ const canSteer=this.started&&!this.mobile&&!this.focus&&this.steerActive&&!modalOpen;
  if(canSteer){
-  this.targetYaw+=this.steerX*dt*1.65;
-  this.targetPitch=clamp(this.targetPitch-this.steerY*dt*.95,-Math.PI/3,Math.PI/3);
+  // Lower angular acceleration, stable across 60/120/144Hz displays.
+  this.targetYaw+=this.steerX*dt*1.05;
+  this.targetPitch=clamp(this.targetPitch-this.steerY*dt*.68,-Math.PI/3,Math.PI/3);
  }
  // Time-based exponential damping, consistent on 60/120/144Hz screens.
- const smooth=1-Math.exp(-10.5*dt);
+ const smooth=1-Math.exp(-7.8*dt);
  this.yaw+=(this.targetYaw-this.yaw)*smooth;
  this.pitch+=(this.targetPitch-this.pitch)*smooth;
  this.mvp=this.makeMVP();this.time+=dt;if(this.blooming)this.bloom=Math.min(1,this.bloom+dt*.5);if(this.onTick)this.onTick(this);
  }
  render(){if(!this.gl||!this.width||!this.height)return;const gl=this.gl;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const obj=this.mainProg;gl.useProgram(obj.p);gl.uniformMatrix4fv(obj.uniform.vp,false,this.mvp);gl.uniform3fv(obj.uniform.camera,this.pos);gl.uniform1f(obj.uniform.time,this.time);gl.uniform1f(obj.uniform.pulse,this.bloom);
- for(const [kind,name] of ['solid','garden','light','tree','blooms','heart'].entries()){const data=this.buffers[name];gl.uniform1f(obj.uniform.kind,kind);for(let k=0;k<3;k++){gl.bindBuffer(gl.ARRAY_BUFFER,data.buffers[k]);gl.enableVertexAttribArray(obj.attrs[k]);gl.vertexAttribPointer(obj.attrs[k],3,gl.FLOAT,false,0,0)}gl.drawArrays(gl.TRIANGLES,0,data.count)}
+ for(const [kind,name] of ['solid','garden','light','tree','blooms','heart'].entries()){
+   // Distant high-poly tree can be culled while it is outside the fog range.
+   if((name==='tree'||name==='blooms')&&this.pos[2]>-25)continue;
+   if(name==='heart'&&this.pos[2]<-30)continue;
+   const data=this.buffers[name];gl.uniform1f(obj.uniform.kind,kind);for(let k=0;k<3;k++){gl.bindBuffer(gl.ARRAY_BUFFER,data.buffers[k]);gl.enableVertexAttribArray(obj.attrs[k]);gl.vertexAttribPointer(obj.attrs[k],3,gl.FLOAT,false,0,0)}gl.drawArrays(gl.TRIANGLES,0,data.count)}
  const p=this.pointProg;gl.useProgram(p.p);gl.uniformMatrix4fv(p.uniform.vp,false,this.mvp);gl.uniform3fv(p.uniform.camera,this.pos);gl.uniform1f(p.uniform.time,this.time);gl.uniform1f(p.uniform.density,Math.min(this.width,900)/900*(1+this.bloom*.35));gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.enableVertexAttribArray(p.attrs[0]);gl.enableVertexAttribArray(p.attrs[1]);gl.vertexAttribPointer(p.attrs[0],3,gl.FLOAT,false,20,0);gl.vertexAttribPointer(p.attrs[1],2,gl.FLOAT,false,20,12);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,this.model.points.length/5);gl.depthMask(true);gl.disable(gl.BLEND);
  }
  step(ms){
@@ -177,21 +186,21 @@ class World{
   if(!this.paused){
    this.update(dt,ms);
    this.render();
-   // Automatically lower GPU pixel work if the frame rate is consistently low.
-   // Wait before restoring quality to avoid an oscillating resolution.
-   if(this.gl&&this.started&&!this.focus&&elapsed>0&&elapsed<.15){
+   // V9: stable one-way quality adjustment. Resizing the WebGL backbuffer while
+   // turning the camera was a visible hitch in V8. Never auto-increase quality.
+   if(this.gl&&this.started&&!this.focus&&elapsed>0&&elapsed<.2){
     this.fpsFrames++;this.fpsElapsed+=elapsed;
-    if(this.fpsElapsed>=2.5){
+    if(this.fpsElapsed>=4.0){
      const fps=this.fpsFrames/this.fpsElapsed;
+     this.fpsDisplay=Math.round(fps);
      this.fpsFrames=0;this.fpsElapsed=0;
-     this.fpsCooldown=Math.max(0,this.fpsCooldown-2.5);
-     if(fps<43&&this.renderScale>.68){
-      this.renderScale=Math.max(.68,Math.round((this.renderScale-.12)*100)/100);
-      this.resize();this.fpsCooldown=7.5;
-     }else if(fps>57&&this.fpsCooldown===0&&this.renderScale<1){
-      this.renderScale=Math.min(1,Math.round((this.renderScale+.06)*100)/100);
-      this.resize();this.fpsCooldown=7.5;
+     if(!this.qualityLocked&&fps<42&&this.renderScale>.70){
+      this.renderScale=this.qualityAdjustments===0?.82:.70;
+      this.qualityAdjustments++;
+      this.resize(); // At most two downward adjustments during a session.
+      if(this.qualityAdjustments>=2)this.qualityLocked=true;
      }
+     if(this.debugHud)this.debugHud.textContent=`${this.fpsDisplay} FPS · ${Math.round(this.quality*this.renderScale*100)}% render`;
     }
    }
   }
