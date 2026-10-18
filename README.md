@@ -1,43 +1,28 @@
-# FOR YOU · V7 — 20/10 interactive 3D experience
+# FOR YOU · V8 — Camera & performance update
 
-A single public website link for everyone. Recipients enter their name and choose a wish on the first screen, then explore flowers, lanterns and a personal letter.
+Website 3D tri ân ngày 20/10, sử dụng một link chung cho tất cả người nhận.
 
-## What changed in V7
+## Sửa lỗi ở V8
 
-- **Mobile-first redesign:** a compact expandable bottom sheet by default, large clear 3D exploration area, separate full list of messages when expanded, compact mobile joystick, well-spaced actions and navigation. Mobile swipe looks around the 3D world.
-- **Mouse-look on desktop:** move the mouse over the 3D scene to look without holding a button. WASD/arrows move; moving toward screen edges continues gentle horizontal rotation for a complete 360° view. Mouse drag is still supported.
-- **Smoother chapters:** the story panel fades/slides as the camera flies to the next area. Scene marker updates are throttled to reduce mobile layout work.
-- **Optimized:** lower mobile WebGL pixel ratio; reduced marker clutter; asset URLs carry a version marker to limit stale browser caching.
-- All previous recipient naming, personal-letter, greeting-card PNG and common-URL behaviors remain intact.
+- **Điều khiển camera desktop:** đưa con trỏ sang bên trái màn hình → nhìn sang trái; đưa sang phải → nhìn sang phải. Đưa về gần giữa màn hình → camera ngừng tự quay. Không cần giữ chuột; để con trỏ ở một bên đủ lâu sẽ xoay được 360°. Camera tạm dừng tự quay khi đang tương tác với bảng, nút hoặc hộp thoại.
+- **Sửa sự kiện chuột:** ở bản trước phần giao diện che canvas nên nó không nhận được đầy đủ các sự kiện trỏ chuột. V8 bắt sự kiện ở vùng khám phá của trang và bỏ qua những điều khiển UI.
+- **Mượt hơn:** nội suy góc quay với hàm giảm chấn theo thời gian, giảm độ phân giải WebGL ban đầu, tự giảm độ phân giải nếu FPS thấp liên tục và hồi phục có kiểm soát nếu FPS ổn định. Giảm hiệu ứng blur của các khối giao diện lớn.
+- **Không thay đổi bố cục V7**, vẫn có bottom sheet điện thoại, joystick, thư cá nhân hóa và xuất thiệp PNG.
 
-## Preview locally
+## Chạy thử
 
-Open this folder in VS Code and run **Live Server** on `index.html`. No npm, build, database, or API key is required.
+Trong VS Code, mở `index.html` bằng Live Server. Di chuột qua vùng không gian 3D, không cần giữ nút. Di chuột về giữa màn hình để dừng xoay. Dùng `W A S D` để đi.
 
-## Publish changes
+**Lưu ý:** cảm giác mượt thực tế còn phụ thuộc GPU, driver, trình duyệt và thiết bị. Hãy kiểm tra hiệu suất WebGL trên máy bạn; không thể cam kết FPS cố định ở mọi máy.
 
-Copy the **contents of this folder** into the local cloned GitHub project, replacing matching files. **Do not delete its `.git` directory.** Then run:
+## Cập nhật GitHub & Vercel
+
+Giải nén rồi chép đè **tất cả file** vào đúng thư mục dự án đã kết nối GitHub, giữ nguyên `.git`. Chạy:
 
 ```bash
 git add .
-git commit -m "FOR YOU V7 - Mobile redesign and smooth 360 mouse look"
+git commit -m "FOR YOU V8 - Correct mouse look and optimize performance"
 git push origin main
 ```
 
-Wait for your Vercel production deployment to reach **Ready**. Visit the website in a private browser window on desktop and mobile.
-
-## Controls
-
-- **Desktop:** WASD / arrow keys to move; simply move your mouse over the 3D view to look in any direction; click a flower/lantern marker or use the story list.
-- **Mobile:** drag on the 3D view to look; use the lower-left joystick to move; tap **Xem các lời nhắn** to expand the interactive list. Close with **Thu gọn**. The chapter tabs jump to each scene.
-
-## Checks before sharing with recipients
-
-- Test desktop mouse-look after the camera arrives in the scene.
-- Test portrait phone layouts, joystick, bottom sheet, chapter navigation and PNG download.
-- Test all dialogs can be closed and another name starts a new experience.
-- Real-device WebGL/GPU performance must be tested on actual phones and desktops; the automated test environment cannot display GPU WebGL.
-
-## Deploy target
-
-Static site, framework preset **Other**, root directory `./`, no build command or environment variables.
+Vercel sẽ tự deploy nếu dự án đã kết nối GitHub. Kiểm tra trạng thái Ready và mở lại trang bằng tab ẩn danh để tránh cache.

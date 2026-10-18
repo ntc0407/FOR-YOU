@@ -265,3 +265,14 @@
 
 .mobile-swipe-hint{display:none}
 @media(max-width:740px){.mobile-swipe-hint{display:block}}
+
+/* V8 — reduce the amount of full-scene blur compositing over animated WebGL.
+   Panels are deliberately almost opaque so they remain legible at lower blur. */
+.story-card{backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
+.name-card{backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
+.controls-note{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+@media(max-width:740px){
+  .story-card{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+  .chapter-navigation{backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .story-card.expanded{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+}

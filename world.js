@@ -78,7 +78,7 @@ let art='';if(stage==='intro'){
  }
 return `<svg class="fb-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}<rect width="1400" height="900" fill="url(#glow)"/>${stars}${art}</svg>`}
 class World{
- constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.lastMouse=null;this.edgeX=0;this.edgeAt=0;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;
+ constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?1.0:1.25;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.fpsCooldown=0;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;
   try{this.gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false,powerPreference:'high-performance'})||canvas.getContext('experimental-webgl');if(this.gl)this.initGL()}catch(e){console.warn('WebGL unavailable; using artistic fallback',e);this.gl=null}
   this.fallbackMode=!this.gl;this.fallback.classList.toggle('active',this.fallbackMode);if(this.fallbackMode){canvas.style.display='none';this.setFallback('intro')}
   this.canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.gl=null;this.fallbackMode=true;this.canvas.style.display='none';this.fallback.classList.add('active');this.setFallback(this.stage)});
@@ -87,42 +87,116 @@ class World{
  initGL(){const gl=this.gl;const p=program(gl,VERT,FRAG);this.mainProg={p,attrs:['p','n','col'].map(s=>gl.getAttribLocation(p,s)),uniform:{vp:gl.getUniformLocation(p,'vp'),camera:gl.getUniformLocation(p,'camera'),time:gl.getUniformLocation(p,'time'),pulse:gl.getUniformLocation(p,'pulse'),kind:gl.getUniformLocation(p,'kind')}};this.buffers={};for(const [name,mesh] of Object.entries(this.model.meshes)){const buffers=[mesh.positions,mesh.normals,mesh.colors].map(arr=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);return b});this.buffers[name]={buffers,count:mesh.count}}
  const points=program(gl,PVERT,PFRAG);this.pointProg={p:points,attrs:[gl.getAttribLocation(points,'p'),gl.getAttribLocation(points,'misc')],uniform:{vp:gl.getUniformLocation(points,'vp'),camera:gl.getUniformLocation(points,'camera'),time:gl.getUniformLocation(points,'time'),density:gl.getUniformLocation(points,'density')}};this.particle=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.bufferData(gl.ARRAY_BUFFER,this.model.points,gl.STATIC_DRAW);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0)
  }
- initEvents(){this.canvas.addEventListener('pointerdown',e=>{if(!this.started)return;this.dragging=true;this.pointer=[e.clientX,e.clientY];try{this.canvas.setPointerCapture?.(e.pointerId)}catch{}});this.canvas.addEventListener('pointermove',e=>{
- if(!this.started||this.focus)return;
- // Mouse-look without holding any button on desktop. Touch still needs a finger drag.
- if(e.pointerType==='mouse'&&!this.dragging&&matchMedia('(hover:hover) and (pointer:fine)').matches){
-    if(this.lastMouse){const dx=clamp(e.clientX-this.lastMouse[0],-75,75),dy=clamp(e.clientY-this.lastMouse[1],-75,75);
-      this.targetYaw-=dx*.0042;this.targetPitch=clamp(this.targetPitch-dy*.0028,-Math.PI/3,Math.PI/3)}
-    this.lastMouse=[e.clientX,e.clientY];
-    this.edgeX=(e.clientX/innerWidth-.5)*2;this.edgeAt=performance.now();return;
+ initEvents(){
+  const finePointer=matchMedia('(hover: hover) and (pointer: fine)');
+  // HTML story panels sit above the canvas. Listen at document level so that
+  // moving over the visible 3D area still reaches the camera controller.
+  const isUI=e=>Boolean(e.target?.closest?.('.site-header,.story-card,.chapter-navigation,.joystick,.interact-shortcut,.marker,.controls-note,.dialog-layer,.letter-layer,button,input,textarea,select,a'));
+  const setGaze=e=>{
+   // Use viewport coordinates even if WebGL is unavailable and the canvas is hidden.
+   const width=this.width||window.innerWidth,height=this.height||window.innerHeight;
+   const nx=clamp((e.clientX-width*.5)/(width*.5),-1,1);
+   const ny=clamp((e.clientY-height*.5)/(height*.5),-1,1);
+   const deadzone=.09;
+   const curve=v=>Math.sign(v)*Math.pow(Math.max(0,(Math.abs(v)-deadzone)/(1-deadzone)),1.22);
+   this.steerX=curve(nx);
+   this.steerY=curve(ny);
+   this.steerActive=true;
+  };
+  const resetGaze=()=>{this.steerActive=false;this.steerX=0;this.steerY=0};
+  document.addEventListener('pointerdown',e=>{
+   if(!this.started||this.focus||isUI(e))return;
+   if(e.pointerType==='mouse'&&finePointer.matches){setGaze(e);return}
+   this.dragging=true;this.pointer=[e.clientX,e.clientY];
+   this.touchTarget=e.target;
+   try{this.touchTarget.setPointerCapture?.(e.pointerId)}catch{}
+  });
+  document.addEventListener('pointermove',e=>{
+   if(!this.started||this.focus)return;
+   if(e.pointerType==='mouse'&&finePointer.matches){
+    if(isUI(e)){resetGaze();return}
+    setGaze(e);return;
+   }
+   if(!this.dragging)return;
+   const dx=e.clientX-this.pointer[0],dy=e.clientY-this.pointer[1];
+   // Touch: finger drag moves the viewed scene naturally (mobile unchanged).
+   this.targetYaw-=dx*.0045;
+   this.targetPitch=clamp(this.targetPitch-dy*.0035,-Math.PI/3,Math.PI/3);
+   this.pointer=[e.clientX,e.clientY];
+  });
+  const up=e=>{
+   if(this.dragging){this.dragging=false;try{this.touchTarget?.releasePointerCapture?.(e.pointerId)}catch{}}
+  };
+  document.addEventListener('pointerup',up);
+  document.addEventListener('pointercancel',up);
+  document.addEventListener('pointerout',e=>{if(e.pointerType==='mouse'&&!e.relatedTarget)resetGaze()});
+  window.addEventListener('keydown',e=>{
+   if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;
+   if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
+    e.preventDefault();this.keys.add(e.code);if(this.focus)this.focus=null;
+   }
+  });
+  window.addEventListener('keyup',e=>this.keys.delete(e.code));
+  window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};resetGaze()});
+  // Let the interface receive clicks while the document-level controller steers.
+  this.canvas.style.pointerEvents='none';
  }
- if(!this.dragging)return;
- const dx=e.clientX-this.pointer[0],dy=e.clientY-this.pointer[1];this.targetYaw-=dx*.0045;this.targetPitch=clamp(this.targetPitch-dy*.0035,-Math.PI/3,Math.PI/3);this.pointer=[e.clientX,e.clientY]
- });this.canvas.addEventListener('pointerleave',()=>{this.lastMouse=null;this.edgeX=0});const up=e=>{this.dragging=false;try{this.canvas.releasePointerCapture?.(e.pointerId)}catch{}};this.canvas.addEventListener('pointerup',up);this.canvas.addEventListener('pointercancel',up);window.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();this.keys.add(e.code);if(this.focus)this.focus=null}});window.addEventListener('keyup',e=>this.keys.delete(e.code));window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};this.lastMouse=null;this.edgeX=0});
- this.canvas.style.pointerEvents='none'; // Enabled for drag after the invitation; overlay clickable markers stay above.
- }
- start(){this.started=true;this.canvas.style.pointerEvents='auto';this.flyTo(0)}
+ start(){this.started=true;this.canvas.style.pointerEvents='none';this.steerActive=false;this.steerX=0;this.steerY=0;this.flyTo(0)}
  flyTo(chapter){const mobile=matchMedia('(max-width:740px)').matches;const destinations=[[0,3.8,-11.8],[0,4,-46],[0,4.8,-78]];const looks=[[0,1.9,-29],[0,4.9,-62],[0,7.6,-92]];let dest=destinations[chapter],target=looks[chapter];if(mobile){dest=[0,4.2,chapter===0?-12.5:chapter===1?-47:-79]}
- const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:1750};this.setStage(['garden','lights','tree'][chapter]);
+ const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.steerActive=false;this.steerX=0;this.steerY=0;this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:2000};this.setStage(['garden','lights','tree'][chapter]);
  }
  celebrate(){this.blooming=true;}
  setStage(stage){this.stage=stage;if(this.fallbackMode)this.setFallback(stage)}
  setFallback(stage){this.fallback.innerHTML=fallbackSVG(stage)+Array.from({length:20},(_,i)=>`<span class="fb-petal" style="--x:${(i*81.7)%100}%;--y:${(i*39.1)%95}%;--s:${i%3+9}px;--c:${i%3===0?'#ffe4be':'#f2abc9'};--d:${3+i%5}s">✦</span>`).join('')}
- resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;if(w<=0||h<=0)return;const dpr=Math.min(window.devicePixelRatio||1,this.mobile?1.3:1.7),cw=Math.floor(w*dpr),ch=Math.floor(h*dpr);if(this.canvas.width!==cw||this.canvas.height!==ch){this.canvas.width=cw;this.canvas.height=ch}this.width=w;this.height=h;if(this.gl)this.gl.viewport(0,0,cw,ch);this.mvp=this.makeMVP()}
+ resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;if(w<=0||h<=0)return;const dpr=Math.min(window.devicePixelRatio||1,this.quality)*this.renderScale,cw=Math.max(1,Math.floor(w*dpr)),ch=Math.max(1,Math.floor(h*dpr));if(this.canvas.width!==cw||this.canvas.height!==ch){this.canvas.width=cw;this.canvas.height=ch}this.width=w;this.height=h;if(this.gl)this.gl.viewport(0,0,cw,ch);this.mvp=this.makeMVP()}
  makeMVP(){let aim=[this.pos[0]+Math.sin(this.yaw)*Math.cos(this.pitch),this.pos[1]+Math.sin(this.pitch),this.pos[2]-Math.cos(this.yaw)*Math.cos(this.pitch)];return mul(perspective((this.mobile?70:63)*Math.PI/180,this.width/this.height),lookAt(this.pos,aim))}
  project(point){const m=this.mvp;if(!m)return null;const [x,y,z]=point,cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<.25)return null;let nx=cx/cw,ny=cy/cw;if(Math.abs(nx)>1.2||Math.abs(ny)>1.25)return null;return {x:(nx+1)*this.width/2,y:(1-ny)*this.height/2,d:Math.hypot(this.pos[0]-x,this.pos[1]-y,this.pos[2]-z)}}
  update(dt,ms){if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)');if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
- if(this.started&&!this.focus&&!this.mobile&&!this.dragging&&this.edgeAt&&ms-this.edgeAt<1300&&Math.abs(this.edgeX)>0.86&&!document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)')){
-   const strength=(Math.abs(this.edgeX)-.86)/.14;this.targetYaw+=Math.sign(this.edgeX)*dt*.38*strength;
+ // Cursor steering: neutral at screen center; continuous and reversible 360° pan.
+ // Positive horizontal input increases yaw (look right), negative looks left.
+ const canSteer=this.started&&!this.mobile&&!this.focus&&this.steerActive&&
+  !document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)');
+ if(canSteer){
+  this.targetYaw+=this.steerX*dt*1.65;
+  this.targetPitch=clamp(this.targetPitch-this.steerY*dt*.95,-Math.PI/3,Math.PI/3);
  }
- this.yaw+=(this.targetYaw-this.yaw)*Math.min(1,dt*6.5);this.pitch+=(this.targetPitch-this.pitch)*Math.min(1,dt*6.5);
+ // Time-based exponential damping, consistent on 60/120/144Hz screens.
+ const smooth=1-Math.exp(-10.5*dt);
+ this.yaw+=(this.targetYaw-this.yaw)*smooth;
+ this.pitch+=(this.targetPitch-this.pitch)*smooth;
  this.mvp=this.makeMVP();this.time+=dt;if(this.blooming)this.bloom=Math.min(1,this.bloom+dt*.5);if(this.onTick)this.onTick(this);
  }
  render(){if(!this.gl||!this.width||!this.height)return;const gl=this.gl;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const obj=this.mainProg;gl.useProgram(obj.p);gl.uniformMatrix4fv(obj.uniform.vp,false,this.mvp);gl.uniform3fv(obj.uniform.camera,this.pos);gl.uniform1f(obj.uniform.time,this.time);gl.uniform1f(obj.uniform.pulse,this.bloom);
  for(const [kind,name] of ['solid','garden','light','tree','blooms','heart'].entries()){const data=this.buffers[name];gl.uniform1f(obj.uniform.kind,kind);for(let k=0;k<3;k++){gl.bindBuffer(gl.ARRAY_BUFFER,data.buffers[k]);gl.enableVertexAttribArray(obj.attrs[k]);gl.vertexAttribPointer(obj.attrs[k],3,gl.FLOAT,false,0,0)}gl.drawArrays(gl.TRIANGLES,0,data.count)}
  const p=this.pointProg;gl.useProgram(p.p);gl.uniformMatrix4fv(p.uniform.vp,false,this.mvp);gl.uniform3fv(p.uniform.camera,this.pos);gl.uniform1f(p.uniform.time,this.time);gl.uniform1f(p.uniform.density,Math.min(this.width,900)/900*(1+this.bloom*.35));gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.enableVertexAttribArray(p.attrs[0]);gl.enableVertexAttribArray(p.attrs[1]);gl.vertexAttribPointer(p.attrs[0],3,gl.FLOAT,false,20,0);gl.vertexAttribPointer(p.attrs[1],2,gl.FLOAT,false,20,12);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,this.model.points.length/5);gl.depthMask(true);gl.disable(gl.BLEND);
  }
- step(ms){if(!this.last)this.last=ms;const dt=Math.min(.045,(ms-this.last)/1000);this.last=ms;if(!this.paused){this.update(dt,ms);this.render()}this.raf=requestAnimationFrame(this.step)}
+ step(ms){
+  if(!this.last)this.last=ms;
+  const elapsed=Math.max(0,(ms-this.last)/1000),dt=Math.min(.05,elapsed);
+  this.last=ms;
+  if(!this.paused){
+   this.update(dt,ms);
+   this.render();
+   // Automatically lower GPU pixel work if the frame rate is consistently low.
+   // Wait before restoring quality to avoid an oscillating resolution.
+   if(this.gl&&this.started&&!this.focus&&elapsed>0&&elapsed<.15){
+    this.fpsFrames++;this.fpsElapsed+=elapsed;
+    if(this.fpsElapsed>=2.5){
+     const fps=this.fpsFrames/this.fpsElapsed;
+     this.fpsFrames=0;this.fpsElapsed=0;
+     this.fpsCooldown=Math.max(0,this.fpsCooldown-2.5);
+     if(fps<43&&this.renderScale>.68){
+      this.renderScale=Math.max(.68,Math.round((this.renderScale-.12)*100)/100);
+      this.resize();this.fpsCooldown=7.5;
+     }else if(fps>57&&this.fpsCooldown===0&&this.renderScale<1){
+      this.renderScale=Math.min(1,Math.round((this.renderScale+.06)*100)/100);
+      this.resize();this.fpsCooldown=7.5;
+     }
+    }
+   }
+  }
+  this.raf=requestAnimationFrame(this.step);
+ }
  destroy(){cancelAnimationFrame(this.raf);this.resizeObserver.disconnect()}
 }
 window.ForYouWorld=World;
