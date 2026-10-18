@@ -10,9 +10,9 @@
   <meta property="og:type" content="website">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <title>FOR YOU — A Garden of Things Unsaid</title>
-  <link rel="stylesheet" href="styles.css">
-  <script defer src="world.js"></script>
-  <script defer src="app.js"></script>
+  <link rel="stylesheet" href="styles.css?v=7">
+  <script defer src="world.js?v=7"></script>
+  <script defer src="app.js?v=7"></script>
 </head>
 <body>
 <div id="app">
@@ -54,6 +54,9 @@
     </section>
     <section id="journey" class="journey hidden" aria-label="Hành trình khám phá 3D">
       <div class="story-card" id="story-card">
+        <button type="button" class="sheet-toggle" id="sheet-toggle" aria-expanded="false" aria-controls="discoveries" aria-label="Mở danh sách lời nhắn">
+          <span class="sheet-grip" aria-hidden="true"></span><span class="sheet-toggle-text">Xem các lời nhắn</span><span class="sheet-chevron" aria-hidden="true">⌃</span>
+        </button>
         <p class="story-overline" id="story-overline">CHƯƠNG 01 · KHU VƯỜN</p>
         <h2 id="story-title">Vườn của<br><em>những điều dịu dàng.</em></h2>
         <p id="story-desc">Chạm vào từng đóa hoa để nhận một lời nhắn dịu dàng.</p>
@@ -62,7 +65,8 @@
         <div class="story-actions"><button id="next-chapter" class="primary-btn">Đến chương tiếp <span>→</span></button></div>
       </div>
       <nav class="chapter-navigation" aria-label="Đi tới các chương"><button data-chapter="0" class="active"><i></i><span>Hoa</span></button><button data-chapter="1"><i></i><span>Ánh sáng</span></button><button data-chapter="2"><i></i><span>Cây tri ân</span></button></nav>
-      <div class="controls-note" id="controls-note"><span class="desktop-instruct">WASD di chuyển · Kéo chuột xoay 360°</span><span class="mobile-instruct">Dùng nút tròn để đi · Vuốt để nhìn 360°</span><button id="hide-help" aria-label="Ẩn hướng dẫn">×</button></div>
+      <div class="controls-note" id="controls-note"><span class="desktop-instruct">WASD để đi · Di chuột để nhìn 360°</span><span class="mobile-instruct">Vuốt để nhìn quanh · Joystick để đi</span><button id="hide-help" aria-label="Ẩn hướng dẫn">×</button></div>
+      <span class="mobile-swipe-hint" aria-hidden="true">Vuốt màn hình để nhìn 360°</span>
       <div class="joystick" id="joystick" aria-label="Điều khiển di chuyển bằng cảm ứng"><div class="joystick-base"><div class="joystick-knob" id="joystick-knob"></div></div><span>DI CHUYỂN</span></div>
       <button class="interact-shortcut" id="interact" aria-label="Khám phá vật thể gần nhất">✧ <span>Khám phá</span></button>
     </section>

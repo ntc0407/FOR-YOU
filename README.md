@@ -1,37 +1,43 @@
-# FOR YOU V5 — 20/10
+# FOR YOU · V7 — 20/10 interactive 3D experience
 
-Trang web 3D tri ân ngày 20/10. **Chỉ cần một URL duy nhất**. Người nhận nhập tên ở trang đầu, chọn điều ước và nhận một bức thư được cá nhân hóa ở cuối hành trình. Không có tên người gửi, tài khoản hoặc database.
+A single public website link for everyone. Recipients enter their name and choose a wish on the first screen, then explore flowers, lanterns and a personal letter.
 
-## Thử nghiệm trong VS Code
+## What changed in V7
 
-1. Giải nén thư mục dự án, mở **File → Open Folder** trong VS Code.
-2. Cài extension **Live Server** (Ritwick Dey).
-3. Nhấp phải `index.html` → **Open with Live Server**.
-4. Nhập tên, chọn điều ước, nhấn **Bắt đầu**.
-5. Giữ chuột trái và kéo trên cảnh để xoay ngang **360° không giới hạn**, xoay dọc giới hạn ±60°. Dùng `W A S D` để đi, hoặc dùng joystick + vuốt trên thiết bị cảm ứng. Nhấn hoa, đèn hoặc các thẻ trong bảng để đọc lời nhắn.
-6. Đến **Cây Tri Ân** để mở thư, tải ảnh PNG.
+- **Mobile-first redesign:** a compact expandable bottom sheet by default, large clear 3D exploration area, separate full list of messages when expanded, compact mobile joystick, well-spaced actions and navigation. Mobile swipe looks around the 3D world.
+- **Mouse-look on desktop:** move the mouse over the 3D scene to look without holding a button. WASD/arrows move; moving toward screen edges continues gentle horizontal rotation for a complete 360° view. Mouse drag is still supported.
+- **Smoother chapters:** the story panel fades/slides as the camera flies to the next area. Scene marker updates are throttled to reduce mobile layout work.
+- **Optimized:** lower mobile WebGL pixel ratio; reduced marker clutter; asset URLs carry a version marker to limit stale browser caching.
+- All previous recipient naming, personal-letter, greeting-card PNG and common-URL behaviors remain intact.
 
-## Triển khai GitHub → Vercel
+## Preview locally
 
-- Push nội dung thư mục này lên repository GitHub, sao cho `index.html` nằm ở gốc repository.
-- Vào [vercel.com/new](https://vercel.com/new), import repository.
-- Framework Preset: **Other**. Build command: **để trống**. Output directory: **để trống**.
-- Deploy. Chia sẻ đúng URL của site cho mọi người, không cần `?id=...`.
+Open this folder in VS Code and run **Live Server** on `index.html`. No npm, build, database, or API key is required.
 
-## Nội dung nâng cấp V5
+## Publish changes
 
-- Thẻ trong bảng hiển thị **tên đầy đủ**, không còn cắt thành từ cuối.
-- Các thẻ chia 2 cột, cả trên mobile; tên trên vật thể 3D thu gọn thành biểu tượng (chỉ hiện khi rê chuột/focus trên desktop).
-- Xóa các nhãn kỹ thuật, tiêu đề chương trùng lặp, nút xem lại và những câu hướng dẫn dài.
-- Camera không khóa yaw. Khi chuyển chương, tự chọn góc quay ngắn nhất để tránh xoay ngược đột ngột. Scroll điều hướng theo hướng camera.
-- Có WebGL thì thể hiện mô hình 3D và camera quay 360°. Nếu thiết bị không hỗ trợ WebGL, web dùng hình minh họa 2D dự phòng (không xoay 3D được).
+Copy the **contents of this folder** into the local cloned GitHub project, replacing matching files. **Do not delete its `.git` directory.** Then run:
 
-## Cấu trúc
+```bash
+git add .
+git commit -m "FOR YOU V7 - Mobile redesign and smooth 360 mouse look"
+git push origin main
+```
 
-- `index.html` — bố cục, nhập tên, nội dung chương.
-- `styles.css` — giao diện và responsive.
-- `world.js` — WebGL procedural 3D, camera, chuột, WASD và joystick.
-- `app.js` — nội dung, tương tác, cá nhân hóa và tải thư PNG.
-- `assets/favicon.svg` — favicon.
+Wait for your Vercel production deployment to reach **Ready**. Visit the website in a private browser window on desktop and mobile.
 
-Không cần npm. Phông chữ ưu tiên Google Fonts khi online và dùng font fallback khi offline. Nội dung tên và lời chúc chỉ được xử lý trong trình duyệt; không gửi tên đến máy chủ từ mã nguồn này. Các thư được phối từ nhiều đoạn theo tên, điều ước và tương tác, không phải thư viết thủ công riêng cho từng người.
+## Controls
+
+- **Desktop:** WASD / arrow keys to move; simply move your mouse over the 3D view to look in any direction; click a flower/lantern marker or use the story list.
+- **Mobile:** drag on the 3D view to look; use the lower-left joystick to move; tap **Xem các lời nhắn** to expand the interactive list. Close with **Thu gọn**. The chapter tabs jump to each scene.
+
+## Checks before sharing with recipients
+
+- Test desktop mouse-look after the camera arrives in the scene.
+- Test portrait phone layouts, joystick, bottom sheet, chapter navigation and PNG download.
+- Test all dialogs can be closed and another name starts a new experience.
+- Real-device WebGL/GPU performance must be tested on actual phones and desktops; the automated test environment cannot display GPU WebGL.
+
+## Deploy target
+
+Static site, framework preset **Other**, root directory `./`, no build command or environment variables.

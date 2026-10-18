@@ -177,3 +177,91 @@
   .joystick-base{width:78px;height:78px}
   .interact-shortcut{padding:0 12px}
 }
+
+/* FOR YOU V7 · cinematic transitions, genuine mobile-first game HUD */
+:root{--ease-cinematic:cubic-bezier(.22,1,.36,1)}
+.story-card{transition:opacity .35s ease, transform .45s var(--ease-cinematic), background .35s ease}
+.story-card.is-refreshing{animation:storyGlow .45s ease both}
+@keyframes storyGlow{0%{filter:brightness(1)}40%{filter:brightness(1.12)}100%{filter:brightness(1)}}
+.story-card.chapter-leaving{opacity:0;transform:translateY(calc(-50% + 12px));pointer-events:none}
+.story-card.chapter-entering{animation:chapterReveal .52s var(--ease-cinematic) both}
+@keyframes chapterReveal{from{opacity:0;filter:blur(3px);transform:translateY(calc(-50% + 12px))}to{opacity:1;filter:none;transform:translateY(-50%)}}
+.sheet-toggle{display:none}
+#world{touch-action:none}
+.journey{transition:opacity .6s ease}
+.discoveries button,.primary-btn,.wish-options button{transition:background .27s ease,border-color .27s ease,box-shadow .32s ease,transform .32s var(--ease-cinematic)}
+.discoveries button:active,.primary-btn:active{transform:scale(.975)}
+.interact-shortcut.visible{transition:opacity .25s ease,transform .32s var(--ease-cinematic)}
+
+@media(max-width:740px){
+  .site-header{height:60px;padding:0 16px;background:linear-gradient(180deg,rgba(15,9,23,.62),transparent)}
+  .site-header .brand{font-size:15px}
+  .site-header .brand i{font-size:23px}
+  .site-header .header-right{gap:8px}
+  .date{font-size:9px;padding:7px 9px}
+  .sound-btn,.share-btn{width:34px;height:34px}
+  .journey{height:calc(100dvh - 60px);min-height:0;isolation:isolate;--sheet-height:162px}
+  .chapter-navigation{z-index:16;top:10px;left:12px;right:12px;width:auto;transform:none;justify-content:space-between;gap:1px;padding:5px;border-radius:999px;background:rgba(27,16,37,.75)}
+  .chapter-navigation button{flex:1;min-width:0;justify-content:center;padding:10px 5px;gap:6px;font-size:10px;letter-spacing:0}
+  .chapter-navigation button span{display:inline}
+  .controls-note{display:none!important}
+  .mobile-swipe-hint{position:absolute;z-index:7;top:69px;right:18px;color:rgba(255,229,222,.79);text-shadow:0 2px 7px #150c1a;letter-spacing:.03em;font-size:10px;pointer-events:none;animation:hintLeave 4.8s ease both}
+  @keyframes hintLeave{0%,64%{opacity:.9}100%{opacity:0}}
+  .story-card{z-index:18;position:absolute;top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:10px;right:10px;width:auto;max-width:none;transform:none;overflow:hidden;padding:10px 17px 14px;border-radius:24px;background:linear-gradient(175deg,rgba(44,26,56,.96),rgba(23,14,32,.965));backdrop-filter:blur(28px);box-shadow:0 18px 55px rgba(7,4,15,.65);transition:height .48s var(--ease-cinematic), max-height .48s var(--ease-cinematic),opacity .28s ease,transform .48s var(--ease-cinematic)}
+  .story-card::before{border-radius:23px}
+  .story-card:not(.expanded){height:166px;max-height:166px}
+  .story-card.expanded{height:auto;max-height:min(70dvh,580px);overflow-y:auto;overscroll-behavior:contain}
+  .story-card.chapter-leaving{opacity:0;transform:translateY(18px)}
+  .story-card.chapter-entering{animation:mobileChapterReveal .54s var(--ease-cinematic) both}
+  @keyframes mobileChapterReveal{from{opacity:0;filter:blur(3px);transform:translateY(15px)}to{opacity:1;filter:none;transform:translateY(0)}}
+  .sheet-toggle{width:100%;height:27px;display:flex;justify-content:space-between;align-items:center;gap:9px;padding:0 3px 3px;border:0;background:transparent;color:#eac9d7;font-size:10px;font-weight:600;letter-spacing:.06em}
+  .sheet-grip{width:37px;height:4px;border-radius:9px;background:linear-gradient(90deg,#dfafc1,#fbe0c3);opacity:.73;flex:0 0 auto}
+  .sheet-toggle-text{margin-left:auto;letter-spacing:.01em;font-size:10px}
+  .sheet-chevron{font-size:18px;line-height:1;transform:rotate(0);transition:transform .38s ease}
+  .story-card.expanded .sheet-chevron{transform:rotate(180deg)}
+  .story-card:not(.expanded) .story-overline,.story-card:not(.expanded) #story-desc,.story-card:not(.expanded) #discoveries{display:none}
+  .story-card:not(.expanded) h2{font-size:clamp(22px,6.2vw,27px);line-height:1.02;margin:0 0 5px;letter-spacing:-.04em;max-width:100%}
+  .story-card:not(.expanded) .story-progress{margin:0 0 8px}
+  .story-card:not(.expanded) .story-progress>span{font-size:9px;letter-spacing:.025em}
+  .story-card:not(.expanded) .progress-track{height:2px;margin-top:5px}
+  .story-card:not(.expanded) .story-actions .primary-btn{min-height:37px;height:37px;padding:9px 13px;border-radius:11px;font-size:11px;box-shadow:none}
+  .story-card.expanded{padding:11px 17px 17px}
+  .story-card.expanded .story-overline{display:block;font-size:8px;margin:7px 0 10px}
+  .story-card.expanded h2{font-size:clamp(28px,8.3vw,37px);line-height:1.03}
+  .story-card.expanded #story-desc{font-size:11px;line-height:1.58;margin:10px 0}
+  .story-card.expanded .discoveries{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0 12px}
+  .story-card.expanded .discoveries button{min-height:39px;font-size:10px;line-height:1.22;padding:8px 7px;justify-content:flex-start}
+  .story-card.expanded .story-actions .primary-btn{min-height:44px}
+  .story-card.expanded .story-progress{margin-bottom:11px}
+  .joystick{z-index:15;left:17px;top:auto;bottom:calc(var(--sheet-height,166px) + 24px);gap:5px;transition:opacity .28s ease,transform .3s var(--ease-cinematic)}
+  .joystick-base{width:75px;height:75px;border-radius:50%;background:radial-gradient(circle at 45% 30%,rgba(94,57,108,.71),rgba(27,18,39,.91));border-color:rgba(255,235,230,.42);box-shadow:0 10px 26px #0d061bbb,inset 0 0 14px rgba(255,232,226,.06)}
+  .joystick-knob{height:30px;width:30px;box-shadow:0 2px 12px #f7b9da22}
+  .joystick span{font-size:8px;letter-spacing:.13em}
+  .interact-shortcut.visible{z-index:15;right:14px;bottom:calc(var(--sheet-height,166px) + 39px);min-height:42px;border-radius:13px;padding:9px 12px;font-size:10px;background:rgba(43,26,53,.88);backdrop-filter:blur(10px);box-shadow:0 10px 24px #100b1e9c}
+  .interact-shortcut span{max-width:32vw}
+  .journey.sheet-expanded .joystick,.journey.sheet-expanded .interact-shortcut{opacity:0;pointer-events:none;transform:translateY(10px)}
+  .marker{border:1px solid rgba(255,240,218,.6);width:23px;min-width:23px;min-height:23px;box-shadow:0 0 0 5px rgba(255,222,207,.11),0 0 15px rgba(255,202,211,.3)}
+  .marker .symbol{font-size:12px}
+  .journey.sheet-expanded~#markers .marker{display:none}
+}
+@media(max-width:390px){
+  .story-card:not(.expanded){height:165px;max-height:165px}
+  .chapter-navigation{left:9px;right:9px}
+  .chapter-navigation button{gap:4px;font-size:9px;padding:10px 3px}
+  .story-card{left:9px;right:9px;padding-left:14px;padding-right:14px}
+  .story-card.expanded{padding-left:14px;padding-right:14px}
+  .story-card:not(.expanded) h2{font-size:23px}
+}
+@media(max-height:630px) and (max-width:740px){
+  .story-card:not(.expanded){height:148px;max-height:148px}
+  .story-card:not(.expanded) h2{font-size:21px}
+  .story-card:not(.expanded) .sheet-toggle{height:20px}
+  .story-card.expanded{max-height:74dvh}
+  .joystick-base{width:67px;height:67px}
+  .joystick-knob{width:28px;height:28px}
+  .chapter-navigation{top:7px}
+}
+@media(prefers-reduced-motion:reduce){.story-card.chapter-entering{animation:none!important}.mobile-swipe-hint{animation:none!important}}
+
+.mobile-swipe-hint{display:none}
+@media(max-width:740px){.mobile-swipe-hint{display:block}}
