@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10091b">
+  <meta name="description" content="FOR YOU — Một khu vườn ánh sáng, một hành trình của lòng biết ơn, và một bức thư riêng mang tên bạn. Dành tặng ngày 20/10.">
+  <meta property="og:title" content="FOR YOU · Một thế giới nhỏ dành cho bạn">
+  <meta property="og:description" content="Chạm vào ánh sáng, để những đóa hoa kể điều chưa nói. Có một bức thư đang chờ mang tên bạn.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <title>FOR YOU — A Garden of Things Unsaid</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="world.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+<div id="app">
+  <div class="sky-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <canvas id="world" aria-label="Thế giới 3D FOR YOU"></canvas>
+  <div id="fallback" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div id="markers" aria-label="Những vật thể có thể tương tác"></div>
+  <header class="site-header">
+    <button id="brand" class="brand" aria-label="Về trang đầu">FOR <i>YOU</i><span>✦</span></button>
+    
+    <div class="header-right"><span class="date">20 · 10</span><button class="sound-btn" id="sound" aria-label="Bật âm thanh" aria-pressed="false"><span class="sound-icon">♫</span></button><button id="share" class="share-btn" title="Chia sẻ FOR YOU" aria-label="Chia sẻ link FOR YOU">↗</button></div>
+  </header>
+  <main>
+    <section id="intro" class="intro" aria-label="Lời mời bước vào FOR YOU">
+      <div class="intro-content">
+        
+        <h1><span class="title-top">a little world,</span><span class="title-main">for <em>you.</em></span></h1>
+        <p class="intro-sub">Có những lời cảm ơn không thể gói gọn trong một câu nói.</p>
+        <p class="intro-desc">Một khu vườn nhỏ, những ánh sáng và một lá thư dành riêng cho bạn.</p>
+        <form id="start-form" class="name-card" novalidate>
+          <label for="recipient">Tên của bạn</label>
+          <div class="field-row"><span aria-hidden="true">✧</span><input id="recipient" name="recipient" type="text" maxlength="42" autocomplete="given-name" placeholder="Tên của bạn..." required aria-describedby="name-error"></div>
+          <p id="name-error" class="field-error" role="alert"></p>
+          <p class="wish-label">Hôm nay, bạn mong điều gì?</p>
+          <div class="wish-options" role="group" aria-label="Điều ước của bạn">
+            <button type="button" data-wish="peace" aria-pressed="true">Bình yên</button>
+            <button type="button" data-wish="courage" aria-pressed="false">Can đảm</button>
+            <button type="button" data-wish="shine" aria-pressed="false">Tỏa sáng</button>
+            <button type="button" data-wish="freedom" aria-pressed="false">Tự do</button>
+          </div>
+          <button type="submit" class="primary-btn start-btn">Bắt đầu <span aria-hidden="true">↗</span></button>
+        </form>
+        <p class="private-note">Tên chỉ dùng để viết thư cho bạn.</p>
+      </div>
+      <div class="intro-side"><div class="side-ring ring-a"></div><div class="side-ring ring-b"></div><div class="floating-quote">“You are the reason<br>some days feel softer.”</div></div>
+      
+    </section>
+    <section id="journey" class="journey hidden" aria-label="Hành trình khám phá 3D">
+      <div class="story-card" id="story-card">
+        <p class="story-overline" id="story-overline">CHƯƠNG 01 · KHU VƯỜN</p>
+        <h2 id="story-title">Vườn của<br><em>những điều dịu dàng.</em></h2>
+        <p id="story-desc">Chạm vào từng đóa hoa để nhận một lời nhắn dịu dàng.</p>
+        <div class="story-progress"><span id="progress-label">0/6 đóa hoa</span><div class="progress-track"><i id="progress-fill"></i></div></div>
+        <div id="discoveries" class="discoveries" aria-label="Các vật thể có thể khám phá"></div>
+        <div class="story-actions"><button id="next-chapter" class="primary-btn">Đến chương tiếp <span>→</span></button></div>
+      </div>
+      <nav class="chapter-navigation" aria-label="Đi tới các chương"><button data-chapter="0" class="active"><i></i><span>Hoa</span></button><button data-chapter="1"><i></i><span>Ánh sáng</span></button><button data-chapter="2"><i></i><span>Cây tri ân</span></button></nav>
+      <div class="controls-note" id="controls-note"><span class="desktop-instruct">WASD di chuyển · Kéo chuột xoay 360°</span><span class="mobile-instruct">Dùng nút tròn để đi · Vuốt để nhìn 360°</span><button id="hide-help" aria-label="Ẩn hướng dẫn">×</button></div>
+      <div class="joystick" id="joystick" aria-label="Điều khiển di chuyển bằng cảm ứng"><div class="joystick-base"><div class="joystick-knob" id="joystick-knob"></div></div><span>DI CHUYỂN</span></div>
+      <button class="interact-shortcut" id="interact" aria-label="Khám phá vật thể gần nhất">✧ <span>Khám phá</span></button>
+    </section>
+    <div id="message-layer" class="dialog-layer hidden" role="presentation"></div>
+    <div id="letter-layer" class="letter-layer hidden" role="presentation"></div>
+  </main>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+</body>
+</html>
