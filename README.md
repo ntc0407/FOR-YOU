@@ -1,33 +1,32 @@
-# FOR YOU V11 — Mobile touch and performance update
+# FOR YOU V12 — Soft-focus distance reveal
 
-Phiên bản V11 dựa trực tiếp trên V10. Vẫn giữ nguyên: 1 URL chung, trang đầu nhập tên người nhận, 3 chương 3D, lời nhắn và lá thư cá nhân.
+Phiên bản V12 được phát triển trực tiếp từ V11. Giữ nguyên một URL chung, nhập tên người nhận ở trang đầu, điều khiển desktop/mobile, ba chương 3D và bức thư cá nhân hóa.
 
-## Những thay đổi ở V11
+## Điểm mới ở V12 — xa mờ, gần rõ
 
-- **Vuốt để nhìn trên điện thoại:** vuốt trái → camera nhìn trái; vuốt phải → nhìn phải; vuốt lên → nhìn lên; vuốt xuống → nhìn xuống. Không đảo hướng.
-- **Độ nhạy:** tăng hệ số quay khi vuốt từ `0.0042` lên `0.0065` rad/px (ngang), từ `0.0033` lên `0.0051` rad/px (dọc). Giảm độ trễ bằng nội suy theo thời gian nhanh hơn chỉ trên mobile.
-- **Di chuyển bằng joystick:** tốc độ di chuyển mobile 10.8 thay vì 7.4 đơn vị/giây; thêm lọc nhẹ chống rung, deadzone nhỏ, giới hạn tốc độ chéo, và không đo lại layout mỗi sự kiện di chuyển ngón tay.
-- **WebGL mobile:** tỉ lệ render cố định 0.74 (trước là 0.8); tắt multisample antialiasing trên mobile; giới hạn số điểm hạt được vẽ trên điện thoại còn 650. Không có cơ chế tăng/giảm chất lượng liên tục trong khi xoay camera.
-- **Vùng cảm ứng 3D:** thêm `.look-zone` để trình duyệt không hiểu thao tác vuốt cảnh là cuộn trang. Bảng nội dung khi mở rộng vẫn cho phép cuộn dọc độc lập.
-- **Desktop:** giữ cách giữ chuột trái rồi kéo để xoay, không thay đổi điều khiển desktop.
+- **Không còn Cây Tri Ân bất ngờ xuất hiện:** đã bỏ điều kiện ẩn hoàn toàn mô hình khi camera ở xa. Hoa, đèn, cây và trái tim luôn được render nếu nằm trong góc nhìn; tất cả dùng chung công thức khoảng cách.
+- **Sương mờ theo khoảng cách (distance fog):** độ tương phản/màu sắc của vật thể giảm dần từ khoảng 19 đến 108 đơn vị, rồi từ từ hiện rõ khi tiến lại gần. Không có điểm bật/tắt cứng.
+- **Blur hậu kỳ nhẹ (soft focus):** nếu thiết bị hỗ trợ framebuffer WebGL, một lớp 5-tap xử lý màu theo khoảng cách của từng pixel. Khoảng cách xa mờ hơn, gần rõ hơn. Mobile dùng mức mờ nhẹ hơn desktop để giảm gánh nặng GPU.
+- **Dự phòng hiệu suất:** nếu framebuffer không được hỗ trợ, website vẫn chạy với distance fog. Mở `?blur=0` để tắt riêng bước soft-focus, giữ nguyên sương mờ; dùng `?debug=1` để so sánh FPS.
+- **Các biểu tượng tương tác cũng hiện dần:** thay vì chỉ xuất hiện tại một mốc 48 đơn vị, icon mờ và giảm opacity từ xa (64 đơn vị), dần trở nên rõ khi tiến đến gần.
+- **Không làm mờ chữ, nút hay bảng nội dung:** chỉ tác động lên thế giới 3D và marker trong cảnh.
+- **Giữ nguyên điều khiển:** desktop giữ chuột kéo để xoay; điện thoại vuốt hướng nào nhìn hướng đó, joystick như V11.
 
-## Kiểm tra bản V11
+## Kiểm tra bản V12
 
-1. Chạy `index.html` trong Live Server của VS Code.
-2. Dùng Chrome/Edge trên điện thoại: mở màn hình bắt đầu, nhập tên, bấm **Bắt đầu**.
-3. Vuốt ở **vùng cảnh 3D** (không vuốt vào bảng hoặc các nút). Vuốt bốn hướng, xác nhận khung cảnh chuyển động đúng hướng ngón tay.
-4. Dùng joystick: kéo lên để tiến, kéo xuống để lùi, trái/phải để đi ngang. Thả tay để dừng.
-5. Nhấn **Xem các lời nhắn**, cuộn nội dung, rồi thu gọn. Mở thư cuối hành trình.
-6. Nếu muốn quan sát FPS, mở website với `?debug=1`. Cần kiểm tra FPS trên GPU điện thoại thật vì trình duyệt kiểm thử tự động không đại diện cho phần cứng người nhận.
+1. Trong VS Code mở `index.html` qua Live Server.
+2. Nhập tên, đi từ khu vườn đến khu ánh sáng và Cây Tri Ân. Quan sát các mô hình trong nền: ở xa mờ, đến gần dần rõ, không xuất hiện đột ngột.
+3. Kiểm tra lần lượt bằng desktop và điện thoại thực. So sánh `/?debug=1` và `/?debug=1&blur=0` để đánh giá mức tiêu thụ FPS của bước làm mờ hậu kỳ.
+4. Thử lại các thao tác camera, joystick, mở lời nhắn và tải thư PNG.
 
 ## Triển khai lên GitHub và Vercel
 
-Giải nén ZIP và chép đè **toàn bộ nội dung** vào thư mục Git cũ, giữ nguyên `.git`. Không chép nguyên thư mục V11 lồng vào thư mục dự án.
+Giải nén ZIP và chép đè **toàn bộ nội dung** vào thư mục Git cũ, giữ nguyên `.git`. Không chép nguyên thư mục V12 lồng vào thư mục dự án.
 
 ```bash
 git status
 git add .
-git commit -m "FOR YOU V11 - Improve mobile swipe and movement"
+git commit -m "FOR YOU V12 - Add distance fog and soft focus"
 git push origin main
 ```
 
@@ -35,4 +34,4 @@ Vercel tự deploy lại trên nhánh `main`. Chờ **Ready**, sau đó kiểm t
 
 ## Giới hạn kiểm thử
 
-Mã JS đã kiểm tra cú pháp; các hướng vuốt, joystick, chuyển chương, mở thư đã được kiểm tra trong trình duyệt Chromium mô phỏng nhiều kích thước. Đã thử lớp fallback 2D. **Chưa đo được hiệu năng WebGL trên GPU điện thoại thật**. Nếu điện thoại cụ thể còn khựng, so sánh chỉ số FPS tại `?debug=1` để tối ưu tiếp.
+Mã JS đã kiểm tra cú pháp; các hướng vuốt, joystick, chuyển chương, mở thư đã được kiểm tra trong trình duyệt Chromium mô phỏng nhiều kích thước. Đã thử lớp fallback 2D. **Chưa kiểm chứng hiệu ứng hậu kỳ WebGL trên GPU điện thoại thật**. Nếu điện thoại cụ thể còn khựng, so sánh chỉ số FPS tại `?debug=1` để tối ưu tiếp.

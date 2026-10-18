@@ -307,3 +307,11 @@ body.is-looking,body.is-looking *{user-select:none!important;-webkit-user-select
 
 /* Hit-test layer: touch look gestures never trigger browser scroll, while the story sheet still scrolls. */
 .journey .look-zone{position:absolute;inset:0;z-index:0;touch-action:none;pointer-events:auto;background:transparent}
+
+/* FOR YOU V12 · graduated discovery. Far labels dissolve rather than suddenly spawn. */
+.marker.show{opacity:var(--distance-opacity,.94);filter:blur(var(--distance-softness,0px));transition:opacity .35s ease,filter .35s ease,transform .3s cubic-bezier(.22,.61,.36,1),background .25s ease;}
+.marker.done.show{opacity:var(--distance-opacity,.78);}
+.marker.show:focus-visible,.marker.show:hover{opacity:1;filter:none;}
+/* Unfocused fallback art also transitions gently between chapters. */
+.fb-art{transition:opacity 1.1s ease,filter .9s ease;}
+@media(prefers-reduced-motion:reduce){.marker.show,.fb-art{transition:none}}

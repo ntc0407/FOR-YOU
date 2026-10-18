@@ -113,7 +113,7 @@ function updateMarkers(w){
    const coords=state.chapter===0?[[.54,.31],[.62,.46],[.71,.32],[.49,.57],[.68,.58],[.8,.52]]:state.chapter===1?[[.43,.35],[.58,.55],[.65,.26],[.77,.52],[.82,.35]]:[[.65,.41]];
    const pos=coords[order];p={x:w.width*pos[0],y:w.height*pos[1],d:8};
   }else p=w.project(it.point);
-  if(!p||p.d>48||overlaps(p,rects.header,14)||overlaps(p,rects.nav,isMobile?10:16)||overlaps(p,rects.help,10)||overlaps(p,rects.card,isMobile?16:22)||isMobile&&p.y>w.height*.47)continue;
+  if(!p||p.d>64||overlaps(p,rects.header,14)||overlaps(p,rects.nav,isMobile?10:16)||overlaps(p,rects.help,10)||overlaps(p,rects.card,isMobile?16:22)||isMobile&&p.y>w.height*.47)continue;
   const done=it.chapter===0?state.flowers.has(Number(it.id.split('-')[1])):it.chapter===1?state.lights.has(Number(it.id.split('-')[1])):state.letterOpened;
   candidates.push({it,p,done});
  }
@@ -132,6 +132,12 @@ function updateMarkers(w){
   if(it.lastX===undefined||Math.abs(it.lastX-x)>=3||Math.abs(it.lastY-y)>=3){
    el.style.left=x+'px';el.style.top=y+'px';it.lastX=x;it.lastY=y;
   }
+  // Distance-based blur + dissolve: don't spawn interaction markers abruptly at 48m.
+  const ramp=Math.max(0,Math.min(1,(64-hit.p.d)/39));
+  const clarity=ramp*ramp*(3-2*ramp);
+  const nextOpacity=(.94*clarity).toFixed(3),nextSoftness=((1-clarity)*3.4).toFixed(2)+'px';
+  if(it.lastOpacity!==nextOpacity){el.style.setProperty('--distance-opacity',nextOpacity);it.lastOpacity=nextOpacity}
+  if(it.lastSoftness!==nextSoftness){el.style.setProperty('--distance-softness',nextSoftness);it.lastSoftness=nextSoftness}
   el.classList.toggle('show',true);
   el.classList.toggle('done',Boolean(hit.done));
   el.classList.toggle('near',it===nearest);

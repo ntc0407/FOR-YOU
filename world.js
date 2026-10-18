@@ -56,8 +56,12 @@ function createGarden(){const rng=rand(20261020),solid=new Mesh(),garden=new Mes
  for(let i=0;i<1250;i++){const x=(rng()-.5)*92,y=.2+rng()*25,z=22-rng()*135;embers.push(x,y,z,rng(),.55+rng()*1.6)}
  return {meshes:{solid:solid.export(),garden:garden.export(),light:light.export(),tree:tree.export(),blooms:blooms.export(),heart:heart.export()},points:new Float32Array(embers),flowers:flowerSpots,lanterns:lanternSpots,tree:[0,7.5,tz+3.4],heart:[7.9,5,4]};
 }
-const VERT=`attribute vec3 p;attribute vec3 n;attribute vec3 col;uniform mat4 vp;uniform vec3 camera;uniform float time;uniform float pulse;uniform float kind;varying vec3 vcol;varying float vfog;varying vec3 vnormal;varying float vshine;void main(){vec3 w=p; if(kind==5.0){w=vec3(7.9,5.0,4.0)+(w-vec3(7.9,5.0,4.0))*(1.0+0.034*sin(time*2.6));}else if(kind==4.0){w.x+=0.045*sin(time*.7+w.y*1.7+w.z*.7);} else if(kind==2.0){w.x+=0.04*sin(time*.6+w.y*.9+w.z*.7);}gl_Position=vp*vec4(w,1.0);vcol=col;vnormal=normalize(n);float d=distance(camera,w);vfog=smoothstep(25.0,96.0,d);vshine=kind==4.0?0.19+pulse*.30:kind==2.0?0.25:kind==5.0?0.38:0.0;}`;
-const FRAG=`precision mediump float;varying vec3 vcol;varying float vfog;varying vec3 vnormal;varying float vshine;uniform float time;void main(){vec3 n=normalize(vnormal);vec3 sun=normalize(vec3(-.43,.87,.55));float lam=max(dot(n,sun),0.0);float fill=max(dot(n,normalize(vec3(.75,.2,-.4))),0.0);float rim=pow(1.0-max(dot(n,vec3(0.,0.,1.)),0.),2.7);vec3 lit=vcol*(.42+.70*lam+.25*fill)+vec3(1.,.80,.70)*rim*.12+vcol*vshine;vec3 fog=vec3(.105,.074,.15);lit=mix(lit,fog,vfog*.8);gl_FragColor=vec4(pow(lit,vec3(.88)),1.);}`;
+const VERT=`attribute vec3 p;attribute vec3 n;attribute vec3 col;uniform mat4 vp;uniform vec3 camera;uniform float time;uniform float pulse;uniform float kind;varying vec3 vcol;varying float vfog;varying float vdefocus;varying vec3 vnormal;varying float vshine;void main(){vec3 w=p; if(kind==5.0){w=vec3(7.9,5.0,4.0)+(w-vec3(7.9,5.0,4.0))*(1.0+0.034*sin(time*2.6));}else if(kind==4.0){w.x+=0.045*sin(time*.7+w.y*1.7+w.z*.7);} else if(kind==2.0){w.x+=0.04*sin(time*.6+w.y*.9+w.z*.7);}gl_Position=vp*vec4(w,1.0);vcol=col;vnormal=normalize(n);float d=distance(camera,w);vfog=smoothstep(19.0,108.0,d);vdefocus=smoothstep(14.0,83.0,d);vshine=kind==4.0?0.19+pulse*.30:kind==2.0?0.25:kind==5.0?0.38:0.0;}`;
+const FRAG=`precision mediump float;varying vec3 vcol;varying float vfog;varying float vdefocus;varying vec3 vnormal;varying float vshine;uniform float time;uniform float depthEncode;void main(){vec3 n=normalize(vnormal);vec3 sun=normalize(vec3(-.43,.87,.55));float lam=max(dot(n,sun),0.0);float fill=max(dot(n,normalize(vec3(.75,.2,-.4))),0.0);float rim=pow(1.0-max(dot(n,vec3(0.,0.,1.)),0.),2.7);vec3 lit=vcol*(.42+.70*lam+.25*fill)+vec3(1.,.80,.70)*rim*.12+vcol*vshine;vec3 fog=vec3(.105,.074,.15);lit=mix(lit,fog,vfog*.93);float encoded=.075+.9*vdefocus;gl_FragColor=vec4(pow(lit,vec3(.88)),mix(1.0,encoded,depthEncode));}`;
+// V12: lightweight 5-tap distance-aware soft focus (no expensive multi-pass Gaussian blur).
+// The alpha channel in the scene framebuffer encodes defocus; clear sky alpha stays zero.
+const POST_VERT=`attribute vec2 xy;varying vec2 uv;void main(){uv=xy*.5+.5;gl_Position=vec4(xy,0.,1.);}`;
+const POST_FRAG=`precision mediump float;varying vec2 uv;uniform sampler2D sceneTex;uniform vec2 texel;uniform float softness;float coverage(float a){return smoothstep(.013,.052,a);}void main(){vec4 center=texture2D(sceneTex,uv);float blur=smoothstep(.14,.94,center.a)*softness;float c0=coverage(center.a);if(blur<.035){gl_FragColor=vec4(center.rgb,c0);return;}vec2 shift=texel*(1.3+3.4*blur);vec4 a=texture2D(sceneTex,uv+vec2(shift.x,0.));vec4 b=texture2D(sceneTex,uv-vec2(shift.x,0.));vec4 c=texture2D(sceneTex,uv+vec2(0.,shift.y));vec4 d=texture2D(sceneTex,uv-vec2(0.,shift.y));float ca=coverage(a.a),cb=coverage(b.a),cc=coverage(c.a),cd=coverage(d.a);float w0=.40,w=.15;float cover=w0*c0+w*(ca+cb+cc+cd);vec3 rgb=(center.rgb*w0*c0+w*(a.rgb*ca+b.rgb*cb+c.rgb*cc+d.rgb*cd))/max(.001,cover);gl_FragColor=vec4(rgb,cover);}`;
 const PVERT=`attribute vec3 p;attribute vec2 misc;uniform mat4 vp;uniform vec3 camera;uniform float time;uniform float density;varying float a;void main(){vec3 w=p;w.y+=sin(time*(.37+misc.x*.5)+p.x*.6)*.36;w.x+=cos(time*.25+p.z*.3)*.11;vec4 clip=vp*vec4(w,1.0);gl_Position=clip;float d=distance(w,camera);gl_PointSize=clamp((misc.y*22.)/max(4.,d),1.5,9.0)*density;a=(.25+.7*misc.x)*(1.-smoothstep(30.,120.,d));}`;
 const PFRAG=`precision mediump float;varying float a;void main(){float d=length(gl_PointCoord-.5);float edge=smoothstep(.5,.04,d);gl_FragColor=vec4(1.,.76,.7,edge*a);}`;
 function compile(gl,type,source){const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){const message=gl.getShaderInfoLog(sh);gl.deleteShader(sh);throw Error(message)}return sh}
@@ -84,8 +88,29 @@ class World{
   this.canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.gl=null;this.fallbackMode=true;this.canvas.style.display='none';this.fallback.classList.add('active');this.setFallback(this.stage)});
   this.initEvents();this.resize();this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);document.addEventListener('visibilitychange',()=>{this.paused=document.hidden;this.last=0});if(new URLSearchParams(location.search).get('debug')==='1'){const hud=document.createElement('output');hud.id='foryou-fps';hud.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;background:#140e20dc;color:#ffe8dd;padding:8px 12px;border-radius:9px;font:12px system-ui;pointer-events:none';hud.textContent='Đang đo FPS…';document.body.append(hud);this.debugHud=hud;}this.step=this.step.bind(this);this.raf=requestAnimationFrame(this.step);
  }
- initGL(){const gl=this.gl;const p=program(gl,VERT,FRAG);this.mainProg={p,attrs:['p','n','col'].map(s=>gl.getAttribLocation(p,s)),uniform:{vp:gl.getUniformLocation(p,'vp'),camera:gl.getUniformLocation(p,'camera'),time:gl.getUniformLocation(p,'time'),pulse:gl.getUniformLocation(p,'pulse'),kind:gl.getUniformLocation(p,'kind')}};this.buffers={};for(const [name,mesh] of Object.entries(this.model.meshes)){const buffers=[mesh.positions,mesh.normals,mesh.colors].map(arr=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);return b});this.buffers[name]={buffers,count:mesh.count}}
- const points=program(gl,PVERT,PFRAG);this.pointProg={p:points,attrs:[gl.getAttribLocation(points,'p'),gl.getAttribLocation(points,'misc')],uniform:{vp:gl.getUniformLocation(points,'vp'),camera:gl.getUniformLocation(points,'camera'),time:gl.getUniformLocation(points,'time'),density:gl.getUniformLocation(points,'density')}};this.particle=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.bufferData(gl.ARRAY_BUFFER,this.model.points,gl.STATIC_DRAW);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0)
+ initGL(){const gl=this.gl;const p=program(gl,VERT,FRAG);this.mainProg={p,attrs:['p','n','col'].map(s=>gl.getAttribLocation(p,s)),uniform:{vp:gl.getUniformLocation(p,'vp'),camera:gl.getUniformLocation(p,'camera'),time:gl.getUniformLocation(p,'time'),pulse:gl.getUniformLocation(p,'pulse'),kind:gl.getUniformLocation(p,'kind'),depthEncode:gl.getUniformLocation(p,'depthEncode')}};this.buffers={};for(const [name,mesh] of Object.entries(this.model.meshes)){const buffers=[mesh.positions,mesh.normals,mesh.colors].map(arr=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);return b});this.buffers[name]={buffers,count:mesh.count}}
+ const points=program(gl,PVERT,PFRAG);this.pointProg={p:points,attrs:[gl.getAttribLocation(points,'p'),gl.getAttribLocation(points,'misc')],uniform:{vp:gl.getUniformLocation(points,'vp'),camera:gl.getUniformLocation(points,'camera'),time:gl.getUniformLocation(points,'time'),density:gl.getUniformLocation(points,'density')}};this.particle=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.bufferData(gl.ARRAY_BUFFER,this.model.points,gl.STATIC_DRAW);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.disable(gl.CULL_FACE);gl.clearColor(0,0,0,0);this.initSoftFocus();
+ }
+ initSoftFocus(){
+  const gl=this.gl;this.softFocus=null;
+  if(new URLSearchParams(location.search).get('blur')==='0')return;
+  try{
+   const shader=program(gl,POST_VERT,POST_FRAG);
+   const fbo=gl.createFramebuffer(),tex=gl.createTexture(),depth=gl.createRenderbuffer(),quad=gl.createBuffer();
+   gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+   this.softFocus={shader,fbo,tex,depth,quad,xy:gl.getAttribLocation(shader,'xy'),sampler:gl.getUniformLocation(shader,'sceneTex'),texel:gl.getUniformLocation(shader,'texel'),softness:gl.getUniformLocation(shader,'softness'),width:0,height:0};
+   gl.bindTexture(gl.TEXTURE_2D,tex);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.bindTexture(gl.TEXTURE_2D,null);
+   gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+  }catch(error){console.warn('Soft focus unavailable; smooth distance fog remains enabled',error);this.softFocus=null}
+ }
+ resizeSoftFocus(w,h){
+  const gl=this.gl,fx=this.softFocus;if(!gl||!fx||(fx.width===w&&fx.height===h))return;
+  gl.bindTexture(gl.TEXTURE_2D,fx.tex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.bindRenderbuffer(gl.RENDERBUFFER,fx.depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,w,h);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fx.fbo);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,fx.tex,0);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,fx.depth);
+  const ready=gl.checkFramebufferStatus(gl.FRAMEBUFFER)===gl.FRAMEBUFFER_COMPLETE;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.bindTexture(gl.TEXTURE_2D,null);gl.bindRenderbuffer(gl.RENDERBUFFER,null);
+  if(!ready){console.warn('Soft focus framebuffer unsupported; distance fog remains enabled');this.softFocus=null;return}fx.width=w;fx.height=h;
  }
  initEvents(){
   // V10: explicit click-and-drag. An idle mouse never changes camera heading.
@@ -144,7 +169,7 @@ class World{
  celebrate(){this.blooming=true;}
  setStage(stage){this.stage=stage;if(this.fallbackMode)this.setFallback(stage)}
  setFallback(stage){this.fallback.innerHTML=fallbackSVG(stage)+Array.from({length:20},(_,i)=>`<span class="fb-petal" style="--x:${(i*81.7)%100}%;--y:${(i*39.1)%95}%;--s:${i%3+9}px;--c:${i%3===0?'#ffe4be':'#f2abc9'};--d:${3+i%5}s">✦</span>`).join('')}
- resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;if(w<=0||h<=0)return;const dpr=Math.min(window.devicePixelRatio||1,this.quality)*this.renderScale,cw=Math.max(1,Math.floor(w*dpr)),ch=Math.max(1,Math.floor(h*dpr));if(this.canvas.width!==cw||this.canvas.height!==ch){this.canvas.width=cw;this.canvas.height=ch}this.width=w;this.height=h;if(this.gl)this.gl.viewport(0,0,cw,ch);this.mvp=this.makeMVP()}
+ resize(){const w=this.canvas.clientWidth||innerWidth,h=this.canvas.clientHeight||innerHeight;if(w<=0||h<=0)return;const dpr=Math.min(window.devicePixelRatio||1,this.quality)*this.renderScale,cw=Math.max(1,Math.floor(w*dpr)),ch=Math.max(1,Math.floor(h*dpr));if(this.canvas.width!==cw||this.canvas.height!==ch){this.canvas.width=cw;this.canvas.height=ch}this.width=w;this.height=h;if(this.gl){this.gl.viewport(0,0,cw,ch);this.resizeSoftFocus(cw,ch)}this.mvp=this.makeMVP()}
  makeMVP(){let aim=[this.pos[0]+Math.sin(this.yaw)*Math.cos(this.pitch),this.pos[1]+Math.sin(this.pitch),this.pos[2]-Math.cos(this.yaw)*Math.cos(this.pitch)];return mul(perspective((this.mobile?70:63)*Math.PI/180,this.width/this.height),lookAt(this.pos,aim))}
  project(point){const m=this.mvp;if(!m)return null;const [x,y,z]=point,cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<.25)return null;let nx=cx/cw,ny=cy/cw;if(Math.abs(nx)>1.2||Math.abs(ny)>1.25)return null;return {x:(nx+1)*this.width/2,y:(1-ny)*this.height/2,d:Math.hypot(this.pos[0]-x,this.pos[1]-y,this.pos[2]-z)}}
  update(dt,ms){
@@ -174,13 +199,18 @@ class World{
  this.pitch+=(this.targetPitch-this.pitch)*smooth;
  this.mvp=this.makeMVP();this.time+=dt;if(this.blooming)this.bloom=Math.min(1,this.bloom+dt*.5);if(this.onTick)this.onTick(this);
  }
- render(){if(!this.gl||!this.width||!this.height)return;const gl=this.gl;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const obj=this.mainProg;gl.useProgram(obj.p);gl.uniformMatrix4fv(obj.uniform.vp,false,this.mvp);gl.uniform3fv(obj.uniform.camera,this.pos);gl.uniform1f(obj.uniform.time,this.time);gl.uniform1f(obj.uniform.pulse,this.bloom);
+ render(){if(!this.gl||!this.width||!this.height)return;const gl=this.gl,fx=this.softFocus;if(fx)gl.bindFramebuffer(gl.FRAMEBUFFER,fx.fbo);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const obj=this.mainProg;gl.useProgram(obj.p);gl.uniformMatrix4fv(obj.uniform.vp,false,this.mvp);gl.uniform3fv(obj.uniform.camera,this.pos);gl.uniform1f(obj.uniform.time,this.time);gl.uniform1f(obj.uniform.pulse,this.bloom);gl.uniform1f(obj.uniform.depthEncode,fx?1:0);
  for(const [kind,name] of ['solid','garden','light','tree','blooms','heart'].entries()){
-   // Distant high-poly tree can be culled while it is outside the fog range.
-   if((name==='tree'||name==='blooms')&&this.pos[2]>-25)continue;
-   if(name==='heart'&&this.pos[2]<-30)continue;
+   // Never hard-cull distant scene geometry: let distance fog/soft focus reveal it continuously.
    const data=this.buffers[name];gl.uniform1f(obj.uniform.kind,kind);for(let k=0;k<3;k++){gl.bindBuffer(gl.ARRAY_BUFFER,data.buffers[k]);gl.enableVertexAttribArray(obj.attrs[k]);gl.vertexAttribPointer(obj.attrs[k],3,gl.FLOAT,false,0,0)}gl.drawArrays(gl.TRIANGLES,0,data.count)}
  const p=this.pointProg;gl.useProgram(p.p);gl.uniformMatrix4fv(p.uniform.vp,false,this.mvp);gl.uniform3fv(p.uniform.camera,this.pos);gl.uniform1f(p.uniform.time,this.time);gl.uniform1f(p.uniform.density,Math.min(this.width,900)/900*(1+this.bloom*.35));gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.enableVertexAttribArray(p.attrs[0]);gl.enableVertexAttribArray(p.attrs[1]);gl.vertexAttribPointer(p.attrs[0],3,gl.FLOAT,false,20,0);gl.vertexAttribPointer(p.attrs[1],2,gl.FLOAT,false,20,12);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,this.mobile?Math.min(650,this.model.points.length/5):this.model.points.length/5);gl.depthMask(true);gl.disable(gl.BLEND);
+ if(fx){
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.disable(gl.DEPTH_TEST);gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(fx.shader);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fx.tex);
+  gl.uniform1i(fx.sampler,0);gl.uniform2f(fx.texel,1/fx.width,1/fx.height);gl.uniform1f(fx.softness,this.mobile?.66:1.0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,fx.quad);gl.enableVertexAttribArray(fx.xy);gl.vertexAttribPointer(fx.xy,2,gl.FLOAT,false,0,0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);gl.enable(gl.DEPTH_TEST);gl.bindTexture(gl.TEXTURE_2D,null);
+ }
  }
  step(ms){
   if(!this.last)this.last=ms;
