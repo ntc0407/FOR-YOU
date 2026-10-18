@@ -296,3 +296,14 @@
 @media(max-width:740px){.chapter-navigation{background:rgba(31,19,42,.96)!important;border:1px solid rgba(241,208,226,.14)!important}}
 /* When deliberately dragging, avoid accidental text selection. */
 body.is-looking,body.is-looking *{user-select:none!important;-webkit-user-select:none!important;cursor:grabbing!important}
+
+/* V11 — touch camera: avoid browser gestures stealing the 3D swipe. */
+@media(max-width:740px){
+ .journey{overscroll-behavior:contain}
+ .journey .story-card.expanded{touch-action:pan-y;overscroll-behavior:contain}
+ .joystick,.joystick-base,.joystick-knob{touch-action:none}
+ .joystick-knob{will-change:transform}
+}
+
+/* Hit-test layer: touch look gestures never trigger browser scroll, while the story sheet still scrolls. */
+.journey .look-zone{position:absolute;inset:0;z-index:0;touch-action:none;pointer-events:auto;background:transparent}

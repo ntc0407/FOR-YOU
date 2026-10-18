@@ -78,8 +78,8 @@ let art='';if(stage==='intro'){
  }
 return `<svg class="fb-art" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${sky}<rect width="1400" height="900" fill="url(#glow)"/>${stars}${art}</svg>`}
 class World{
- constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?.8:.95;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.qualityAdjustments=0;this.qualityLocked=true;this.fpsDisplay=0;this.debugHud=null;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;this.modalLayers=[document.getElementById('message-layer'),document.getElementById('letter-layer')];
-  try{this.gl=canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false,powerPreference:'high-performance'})||canvas.getContext('experimental-webgl');if(this.gl)this.initGL()}catch(e){console.warn('WebGL unavailable; using artistic fallback',e);this.gl=null}
+ constructor(canvas,fallback){this.canvas=canvas;this.fallback=fallback;this.model=createGarden();this.stage='intro';this.started=false;this.paused=false;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;this.mobile=matchMedia('(max-width:740px)').matches;this.pos=this.mobile?[7.1,4.7,23]:[0,4.6,23];this.yaw=0;this.pitch=this.mobile?-.33:-.065;this.targetYaw=this.yaw;this.targetPitch=this.pitch;this.keys=new Set();this.axes={x:0,y:0};this.filteredAxes={x:0,y:0};this.focus=null;this.onTick=null;this.dragging=false;this.steerX=0;this.steerY=0;this.steerActive=false;this.quality=this.mobile?.74:.95;this.renderScale=1;this.fpsFrames=0;this.fpsElapsed=0;this.qualityAdjustments=0;this.qualityLocked=true;this.fpsDisplay=0;this.debugHud=null;this.frame=0;this.time=0;this.last=0;this.bloom=0;this.blooming=false;this.modalLayers=[document.getElementById('message-layer'),document.getElementById('letter-layer')];
+  try{this.gl=canvas.getContext('webgl',{alpha:true,antialias:!this.mobile,premultipliedAlpha:false,powerPreference:'high-performance'})||canvas.getContext('experimental-webgl');if(this.gl)this.initGL()}catch(e){console.warn('WebGL unavailable; using artistic fallback',e);this.gl=null}
   this.fallbackMode=!this.gl;this.fallback.classList.toggle('active',this.fallbackMode);if(this.fallbackMode){canvas.style.display='none';this.setFallback('intro')}
   this.canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.gl=null;this.fallbackMode=true;this.canvas.style.display='none';this.fallback.classList.add('active');this.setFallback(this.stage)});
   this.initEvents();this.resize();this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);document.addEventListener('visibilitychange',()=>{this.paused=document.hidden;this.last=0});if(new URLSearchParams(location.search).get('debug')==='1'){const hud=document.createElement('output');hud.id='foryou-fps';hud.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;background:#140e20dc;color:#ffe8dd;padding:8px 12px;border-radius:9px;font:12px system-ui;pointer-events:none';hud.textContent='Đang đo FPS…';document.body.append(hud);this.debugHud=hud;}this.step=this.step.bind(this);this.raf=requestAnimationFrame(this.step);
@@ -117,9 +117,12 @@ class World{
    if(!this.started||!this.dragging||e.pointerId!==this.dragPointerId)return;
    if(this.modalLayers.some(el=>el&&!el.classList.contains('hidden')))return stopDrag();
    const dx=e.clientX-this.pointer[0],dy=e.clientY-this.pointer[1];
-   // Mouse right -> look right. Touch dragging remains in the familiar direction.
-   this.targetYaw+=(e.pointerType==='mouse'?1:-1)*dx*.0042;
-   this.targetPitch=clamp(this.targetPitch-dy*.0033,-Math.PI/3,Math.PI/3);
+   // Natural direct-touch view: swipe left -> look left, swipe right -> look right.
+   // Swipe up (negative dy) -> look up, swipe down -> look down.
+   // A higher mobile gain plus faster time-based damping removes the sluggish feeling.
+   const touch=e.pointerType==='touch'||e.pointerType==='pen';
+   this.targetYaw+=dx*(touch?.0065:.0042);
+   this.targetPitch=clamp(this.targetPitch-dy*(touch?.0051:.0033),-Math.PI/3,Math.PI/3);
    this.pointer=[e.clientX,e.clientY];
   });
   document.addEventListener('pointerup',stopDrag);
@@ -131,7 +134,7 @@ class World{
    }
   });
   window.addEventListener('keyup',e=>this.keys.delete(e.code));
-  window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};stopDrag()});
+  window.addEventListener('blur',()=>{this.keys.clear();this.axes={x:0,y:0};this.filteredAxes={x:0,y:0};stopDrag()});
   this.canvas.style.pointerEvents='none';
  }
  start(){this.started=true;this.canvas.style.pointerEvents='none';this.dragging=false;this.flyTo(0)}
@@ -146,10 +149,27 @@ class World{
  project(point){const m=this.mvp;if(!m)return null;const [x,y,z]=point,cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<.25)return null;let nx=cx/cw,ny=cy/cw;if(Math.abs(nx)>1.2||Math.abs(ny)>1.25)return null;return {x:(nx+1)*this.width/2,y:(1-ny)*this.height/2,d:Math.hypot(this.pos[0]-x,this.pos[1]-y,this.pos[2]-z)}}
  update(dt,ms){
  const modalOpen=this.modalLayers.some(el=>el&&!el.classList.contains('hidden'));
- if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!modalOpen;if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
- // Camera stays still unless the user deliberately drags or moves with WASD.
- // Time-based exponential damping, consistent on 60/120/144Hz screens.
- const smooth=1-Math.exp(-7.8*dt);
+ if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){
+  const active=!modalOpen;
+  if(active){
+   // Smooth joystick noise without adding noticeable steering latency.
+   const moveSmoothing=1-Math.exp(-(this.mobile?23:18)*dt);
+   this.filteredAxes.x+=(this.axes.x-this.filteredAxes.x)*moveSmoothing;
+   this.filteredAxes.y+=(this.axes.y-this.filteredAxes.y)*moveSmoothing;
+   let fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.filteredAxes.y;
+   let lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.filteredAxes.x;
+   // Normalize diagonals and make walking noticeably faster on touch screens.
+   const mag=Math.hypot(fw,lateral);
+   if(mag>1){fw/=mag;lateral/=mag}
+   const move=dt*(this.mobile?10.8:7.4);
+   this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));
+   this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));
+   this.pos[0]=clamp(this.pos[0],-19,19);
+   this.pos[2]=clamp(this.pos[2],-99,19.5);
+  }else{this.filteredAxes.x=0;this.filteredAxes.y=0}
+ }
+ // Higher touch responsiveness; frame-rate-independent exponential smoothing.
+ const smooth=1-Math.exp(-(this.mobile?20:7.8)*dt);
  this.yaw+=(this.targetYaw-this.yaw)*smooth;
  this.pitch+=(this.targetPitch-this.pitch)*smooth;
  this.mvp=this.makeMVP();this.time+=dt;if(this.blooming)this.bloom=Math.min(1,this.bloom+dt*.5);if(this.onTick)this.onTick(this);
@@ -160,11 +180,11 @@ class World{
    if((name==='tree'||name==='blooms')&&this.pos[2]>-25)continue;
    if(name==='heart'&&this.pos[2]<-30)continue;
    const data=this.buffers[name];gl.uniform1f(obj.uniform.kind,kind);for(let k=0;k<3;k++){gl.bindBuffer(gl.ARRAY_BUFFER,data.buffers[k]);gl.enableVertexAttribArray(obj.attrs[k]);gl.vertexAttribPointer(obj.attrs[k],3,gl.FLOAT,false,0,0)}gl.drawArrays(gl.TRIANGLES,0,data.count)}
- const p=this.pointProg;gl.useProgram(p.p);gl.uniformMatrix4fv(p.uniform.vp,false,this.mvp);gl.uniform3fv(p.uniform.camera,this.pos);gl.uniform1f(p.uniform.time,this.time);gl.uniform1f(p.uniform.density,Math.min(this.width,900)/900*(1+this.bloom*.35));gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.enableVertexAttribArray(p.attrs[0]);gl.enableVertexAttribArray(p.attrs[1]);gl.vertexAttribPointer(p.attrs[0],3,gl.FLOAT,false,20,0);gl.vertexAttribPointer(p.attrs[1],2,gl.FLOAT,false,20,12);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,this.model.points.length/5);gl.depthMask(true);gl.disable(gl.BLEND);
+ const p=this.pointProg;gl.useProgram(p.p);gl.uniformMatrix4fv(p.uniform.vp,false,this.mvp);gl.uniform3fv(p.uniform.camera,this.pos);gl.uniform1f(p.uniform.time,this.time);gl.uniform1f(p.uniform.density,Math.min(this.width,900)/900*(1+this.bloom*.35));gl.bindBuffer(gl.ARRAY_BUFFER,this.particle);gl.enableVertexAttribArray(p.attrs[0]);gl.enableVertexAttribArray(p.attrs[1]);gl.vertexAttribPointer(p.attrs[0],3,gl.FLOAT,false,20,0);gl.vertexAttribPointer(p.attrs[1],2,gl.FLOAT,false,20,12);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE);gl.depthMask(false);gl.drawArrays(gl.POINTS,0,this.mobile?Math.min(650,this.model.points.length/5):this.model.points.length/5);gl.depthMask(true);gl.disable(gl.BLEND);
  }
  step(ms){
   if(!this.last)this.last=ms;
-  const elapsed=Math.max(0,(ms-this.last)/1000),dt=Math.min(.05,elapsed);
+  const elapsed=Math.max(0,(ms-this.last)/1000),dt=Math.min(.085,elapsed);
   this.last=ms;
   if(!this.paused){
    this.update(dt,ms);

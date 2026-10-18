@@ -1,32 +1,38 @@
-# FOR YOU V10 — ổn định camera và sửa thanh chọn chương
+# FOR YOU V11 — Mobile touch and performance update
 
-Phiên bản V10 tiếp tục V9, giữ nguyên nội dung tri ân, thư cá nhân hóa, một URL chung và giao diện điện thoại V7–V9.
+Phiên bản V11 dựa trực tiếp trên V10. Vẫn giữ nguyên: 1 URL chung, trang đầu nhập tên người nhận, 3 chương 3D, lời nhắn và lá thư cá nhân.
 
-## Sửa trong V10
+## Những thay đổi ở V11
 
-- **Desktop:** thanh chọn chương Hoa / Ánh sáng / Cây tri ân trở lại trong suốt. Sửa CSS gây một khối nền tối hình chữ nhật bên phải.
-- **Camera desktop:** quay lại điều khiển **giữ chuột trái rồi kéo** trên vùng thế giới 3D; kéo phải nhìn phải, kéo trái nhìn trái. Không tự quay khi rê chuột vào bảng hoặc khi con trỏ đứng lệch tâm.
-- **Camera điện thoại:** vẫn vuốt trên vùng 3D để nhìn, dùng joystick để di chuyển.
-- **Hiệu suất:** giữ tối ưu marker và render của V9; dùng chất lượng WebGL cố định (desktop 0.95, mobile 0.8) để tránh các đợt resize framebuffer trong lúc khám phá.
-- **Cache:** đổi tài nguyên thành `?v=10` để trình duyệt nhận bản CSS/JS mới sau khi deploy.
+- **Vuốt để nhìn trên điện thoại:** vuốt trái → camera nhìn trái; vuốt phải → nhìn phải; vuốt lên → nhìn lên; vuốt xuống → nhìn xuống. Không đảo hướng.
+- **Độ nhạy:** tăng hệ số quay khi vuốt từ `0.0042` lên `0.0065` rad/px (ngang), từ `0.0033` lên `0.0051` rad/px (dọc). Giảm độ trễ bằng nội suy theo thời gian nhanh hơn chỉ trên mobile.
+- **Di chuyển bằng joystick:** tốc độ di chuyển mobile 10.8 thay vì 7.4 đơn vị/giây; thêm lọc nhẹ chống rung, deadzone nhỏ, giới hạn tốc độ chéo, và không đo lại layout mỗi sự kiện di chuyển ngón tay.
+- **WebGL mobile:** tỉ lệ render cố định 0.74 (trước là 0.8); tắt multisample antialiasing trên mobile; giới hạn số điểm hạt được vẽ trên điện thoại còn 650. Không có cơ chế tăng/giảm chất lượng liên tục trong khi xoay camera.
+- **Vùng cảm ứng 3D:** thêm `.look-zone` để trình duyệt không hiểu thao tác vuốt cảnh là cuộn trang. Bảng nội dung khi mở rộng vẫn cho phép cuộn dọc độc lập.
+- **Desktop:** giữ cách giữ chuột trái rồi kéo để xoay, không thay đổi điều khiển desktop.
 
-## Chạy thử
+## Kiểm tra bản V11
 
-Mở thư mục bằng VS Code, dùng Live Server để mở `index.html`. Trên desktop nhập tên, bắt đầu, thử WASD; giữ chuột trái và kéo trên vùng cảnh 3D để quan sát.
+1. Chạy `index.html` trong Live Server của VS Code.
+2. Dùng Chrome/Edge trên điện thoại: mở màn hình bắt đầu, nhập tên, bấm **Bắt đầu**.
+3. Vuốt ở **vùng cảnh 3D** (không vuốt vào bảng hoặc các nút). Vuốt bốn hướng, xác nhận khung cảnh chuyển động đúng hướng ngón tay.
+4. Dùng joystick: kéo lên để tiến, kéo xuống để lùi, trái/phải để đi ngang. Thả tay để dừng.
+5. Nhấn **Xem các lời nhắn**, cuộn nội dung, rồi thu gọn. Mở thư cuối hành trình.
+6. Nếu muốn quan sát FPS, mở website với `?debug=1`. Cần kiểm tra FPS trên GPU điện thoại thật vì trình duyệt kiểm thử tự động không đại diện cho phần cứng người nhận.
 
-Lưu ý: Không thể kéo bắt đầu **trên bảng và các nút**, vì chúng dùng để chọn nội dung. Bắt đầu kéo từ vùng 3D trống vẫn tiếp tục di chuyển khi con trỏ đi qua bảng.
+## Triển khai lên GitHub và Vercel
 
-Khi đã triển khai, thêm `?debug=1` vào link để xem FPS. Trình duyệt thử nghiệm tại đây dùng chế độ đồ họa dự phòng, **chưa xác nhận FPS trên GPU thật**.
-
-## Cập nhật GitHub / Vercel
-
-1. Giải nén ZIP. Chép đè toàn bộ file vào **thư mục Git cũ**, giữ nguyên `.git`.
-2. Trong VS Code:
+Giải nén ZIP và chép đè **toàn bộ nội dung** vào thư mục Git cũ, giữ nguyên `.git`. Không chép nguyên thư mục V11 lồng vào thư mục dự án.
 
 ```bash
+git status
 git add .
-git commit -m "FOR YOU V10 - Fix chapter nav and restore stable camera drag"
+git commit -m "FOR YOU V11 - Improve mobile swipe and movement"
 git push origin main
 ```
 
-3. Đợi Vercel báo **Ready** và kiểm tra lại website bằng cửa sổ ẩn danh.
+Vercel tự deploy lại trên nhánh `main`. Chờ **Ready**, sau đó kiểm tra website trong tab ẩn danh. Không cần npm hay build command.
+
+## Giới hạn kiểm thử
+
+Mã JS đã kiểm tra cú pháp; các hướng vuốt, joystick, chuyển chương, mở thư đã được kiểm tra trong trình duyệt Chromium mô phỏng nhiều kích thước. Đã thử lớp fallback 2D. **Chưa đo được hiệu năng WebGL trên GPU điện thoại thật**. Nếu điện thoại cụ thể còn khựng, so sánh chỉ số FPS tại `?debug=1` để tối ưu tiếp.

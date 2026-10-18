@@ -149,8 +149,34 @@ let ctx=null,soundTimer=null,soundIndex=0;function note(frequency,start,duration
 $('#start-form').addEventListener('submit',enter);$('#recipient').addEventListener('input',()=>$('#name-error').textContent='');$$('[data-wish]').forEach(b=>b.addEventListener('click',()=>{state.wish=b.dataset.wish;$$('[data-wish]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))}));$('#sound').addEventListener('click',toggleSound);$('#share').addEventListener('click',share);$('#next-chapter').addEventListener('click',next);$$('[data-chapter]').forEach(b=>b.addEventListener('click',()=>chapterTo(Number(b.dataset.chapter),true)));$('#discoveries').addEventListener('click',e=>{const b=e.target.closest('[data-discover]');if(b)discover(items.find(it=>it.chapter===state.chapter&&it.id.endsWith('-'+b.dataset.discover)))});$('#interact').addEventListener('click',()=>{const it=items.find(x=>x.id===$('#interact').dataset.id);if(it)discover(it)});
 for(const layer of [$('#letter-layer'),$('#message-layer')]){layer.addEventListener('click',e=>{if(e.target===layer||e.target.closest('[data-close]')){cleanClose();return}if(e.target.closest('[data-open]')){openLetter(true);return}if(e.target.closest('[data-download]')){downloadLetter();return}if(e.target.closest('[data-share]')){share()}})}document.addEventListener('keydown',e=>{if(e.code==='Escape')cleanClose();if(!state.started||!$('#message-layer').classList.contains('hidden')||!$('#letter-layer').classList.contains('hidden'))return;if(e.code==='KeyE'){const it=items.find(x=>x.id===$('#interact').dataset.id);if(it)discover(it)}});
 $('#hide-help').addEventListener('click',()=>$('#controls-note').classList.add('hidden'));
-$('#brand').addEventListener('click',()=>{cleanClose();state.started=false;state.name='';state.flowers.clear();state.lights.clear();state.letterOpened=false;$('#recipient').value='';$('#intro').classList.remove('hidden');$('#journey').classList.add('hidden');setSheetExpanded(false);markerLayer.querySelectorAll('.marker').forEach(m=>m.classList.remove('show'));world.started=false;world.canvas.style.pointerEvents='none';world.pos=world.mobile?[7.1,4.7,23]:[0,4.6,23];world.yaw=world.targetYaw=0;world.pitch=world.targetPitch=world.mobile?-.33:-.065;world.dragging=false;document.body.classList.remove('is-looking');world.focus=null;world.bloom=0;world.blooming=false;world.setStage('intro')});
-const stick=$('#joystick'),knob=$('#joystick-knob');let stickPointer=null;const joystickMove=e=>{const rect=stick.querySelector('.joystick-base').getBoundingClientRect(),cx=rect.left+rect.width/2,cy=rect.top+rect.height/2,dx=e.clientX-cx,dy=e.clientY-cy,r=Math.min(27,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx);knob.style.transform=`translate(${Math.cos(ang)*r}px,${Math.sin(ang)*r}px)`;world.axes={x:Math.cos(ang)*r/27,y:Math.sin(ang)*r/27}};stick.addEventListener('pointerdown',e=>{stickPointer=e.pointerId;stick.setPointerCapture(e.pointerId);joystickMove(e)});stick.addEventListener('pointermove',e=>{if(stickPointer===e.pointerId)joystickMove(e)});function stickEnd(e){if(stickPointer!==e.pointerId)return;stickPointer=null;world.axes={x:0,y:0};knob.style.transform='translate(0,0)'}stick.addEventListener('pointerup',stickEnd);stick.addEventListener('pointercancel',stickEnd);
+$('#brand').addEventListener('click',()=>{cleanClose();state.started=false;state.name='';state.flowers.clear();state.lights.clear();state.letterOpened=false;$('#recipient').value='';$('#intro').classList.remove('hidden');$('#journey').classList.add('hidden');setSheetExpanded(false);markerLayer.querySelectorAll('.marker').forEach(m=>m.classList.remove('show'));world.started=false;world.canvas.style.pointerEvents='none';world.pos=world.mobile?[7.1,4.7,23]:[0,4.6,23];world.yaw=world.targetYaw=0;world.pitch=world.targetPitch=world.mobile?-.33:-.065;world.dragging=false;world.axes={x:0,y:0};world.filteredAxes={x:0,y:0};document.body.classList.remove('is-looking');world.focus=null;world.bloom=0;world.blooming=false;world.setStage('intro')});
+const stick=$('#joystick'),knob=$('#joystick-knob');
+let stickPointer=null,stickCenter=null;
+const joystickMove=e=>{
+ // Cache layout on touch-down: repeated getBoundingClientRect caused avoidable layout work.
+ if(!stickCenter)return;
+ const dx=e.clientX-stickCenter.x,dy=e.clientY-stickCenter.y;
+ const length=Math.hypot(dx,dy),radius=stickCenter.radius;
+ const gain=length>radius?radius/length:1;
+ const x=dx*gain,y=dy*gain;
+ knob.style.transform=`translate3d(${x}px,${y}px,0)`;
+ const deadzone=0.065,magnitude=Math.min(1,length/radius);
+ const scaled=magnitude<deadzone?0:(magnitude-deadzone)/(1-deadzone);
+ const inv=length>0?scaled/length:0;
+ world.axes.x=dx*inv;
+ world.axes.y=dy*inv;
+};
+stick.addEventListener('pointerdown',e=>{
+ if(stickPointer!==null)return;
+ e.preventDefault();stickPointer=e.pointerId;
+ const rect=stick.querySelector('.joystick-base').getBoundingClientRect();
+ stickCenter={x:rect.left+rect.width/2,y:rect.top+rect.height/2,radius:Math.min(38,rect.width*.36)};
+ try{stick.setPointerCapture(e.pointerId)}catch{}
+ joystickMove(e);
+});
+stick.addEventListener('pointermove',e=>{if(stickPointer===e.pointerId){if(e.cancelable)e.preventDefault();joystickMove(e)}});
+function stickEnd(e){if(stickPointer!==e.pointerId)return;stickPointer=null;stickCenter=null;world.axes.x=0;world.axes.y=0;knob.style.transform='translate3d(0,0,0)'}
+stick.addEventListener('pointerup',stickEnd);stick.addEventListener('pointercancel',stickEnd);
 // Desktop scroll wheel is a gentle forward/backward walk while immersive canvas is active.
 window.addEventListener('wheel',e=>{if(!state.started||!$('#message-layer').classList.contains('hidden')||!$('#letter-layer').classList.contains('hidden'))return;if(e.target.closest('.story-card'))return;if(e.cancelable)e.preventDefault();world.focus=null;const stride=Math.sign(e.deltaY)*1.85;world.pos[0]=Math.max(-19,Math.min(19,world.pos[0]+stride*Math.sin(world.yaw)));world.pos[2]=Math.max(-99,Math.min(19.5,world.pos[2]-stride*Math.cos(world.yaw)))},{passive:false});
 updateStory();
