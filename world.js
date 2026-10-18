@@ -92,7 +92,7 @@ class World{
  }
  start(){this.started=true;this.canvas.style.pointerEvents='auto';this.flyTo(0)}
  flyTo(chapter){const mobile=matchMedia('(max-width:740px)').matches;const destinations=[[0,3.8,-11.8],[0,4,-46],[0,4.8,-78]];const looks=[[0,1.9,-29],[0,4.9,-62],[0,7.6,-92]];let dest=destinations[chapter],target=looks[chapter];if(mobile){dest=[0,4.2,chapter===0?-12.5:chapter===1?-47:-79]}
- const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:2100};this.setStage(['garden','lights','tree'][chapter]);
+ const desiredYaw=Math.atan2(target[0]-dest[0],dest[2]-target[2]);this.targetYaw=this.yaw+Math.atan2(Math.sin(desiredYaw-this.yaw),Math.cos(desiredYaw-this.yaw));this.targetPitch=Math.atan2(target[1]-dest[1],Math.hypot(target[0]-dest[0],target[2]-dest[2]));this.focus={from:[...this.pos],to:dest,start:performance.now(),duration:this.reduced?20:2500};this.setStage(['garden','lights','tree'][chapter]);
  }
  celebrate(){this.blooming=true;}
  setStage(stage){this.stage=stage;if(this.fallbackMode)this.setFallback(stage)}
@@ -101,7 +101,7 @@ class World{
  makeMVP(){let aim=[this.pos[0]+Math.sin(this.yaw)*Math.cos(this.pitch),this.pos[1]+Math.sin(this.pitch),this.pos[2]-Math.cos(this.yaw)*Math.cos(this.pitch)];return mul(perspective((this.mobile?70:63)*Math.PI/180,this.width/this.height),lookAt(this.pos,aim))}
  project(point){const m=this.mvp;if(!m)return null;const [x,y,z]=point,cx=m[0]*x+m[4]*y+m[8]*z+m[12],cy=m[1]*x+m[5]*y+m[9]*z+m[13],cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<.25)return null;let nx=cx/cw,ny=cy/cw;if(Math.abs(nx)>1.2||Math.abs(ny)>1.25)return null;return {x:(nx+1)*this.width/2,y:(1-ny)*this.height/2,d:Math.hypot(this.pos[0]-x,this.pos[1]-y,this.pos[2]-z)}}
  update(dt,ms){if(this.focus){const t=clamp((ms-this.focus.start)/this.focus.duration,0,1),e=t<.5?4*t*t*t:1-(-2*t+2)**3/2;this.pos=this.pos.map((v,i)=>this.focus.from[i]+(this.focus.to[i]-this.focus.from[i])*e);if(t>=1)this.focus=null}else if(this.started&&!this.paused){const active=!document.querySelector('.dialog-layer:not(.hidden),.letter-layer:not(.hidden)');if(active){const fw=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)-this.axes.y,lateral=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.axes.x;const move=dt*7.4;this.pos[0]+=move*(fw*Math.sin(this.yaw)+lateral*Math.cos(this.yaw));this.pos[2]+=move*(-fw*Math.cos(this.yaw)+lateral*Math.sin(this.yaw));this.pos[0]=clamp(this.pos[0],-19,19);this.pos[2]=clamp(this.pos[2],-99,19.5);}}
- this.yaw+=(this.targetYaw-this.yaw)*Math.min(1,dt*8);this.pitch+=(this.targetPitch-this.pitch)*Math.min(1,dt*8);
+ this.yaw+=(this.targetYaw-this.yaw)*Math.min(1,dt*6.5);this.pitch+=(this.targetPitch-this.pitch)*Math.min(1,dt*6.5);
  this.mvp=this.makeMVP();this.time+=dt;if(this.blooming)this.bloom=Math.min(1,this.bloom+dt*.5);if(this.onTick)this.onTick(this);
  }
  render(){if(!this.gl||!this.width||!this.height)return;const gl=this.gl;gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);const obj=this.mainProg;gl.useProgram(obj.p);gl.uniformMatrix4fv(obj.uniform.vp,false,this.mvp);gl.uniform3fv(obj.uniform.camera,this.pos);gl.uniform1f(obj.uniform.time,this.time);gl.uniform1f(obj.uniform.pulse,this.bloom);

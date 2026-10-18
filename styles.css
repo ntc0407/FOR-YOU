@@ -86,3 +86,94 @@
 .controls-note button{pointer-events:auto}
 @media(max-width:740px){.controls-note{top:106px;max-width:calc(100% - 44px);justify-content:center}}
 @media(max-width:390px){.controls-note{top:120px}}
+
+/* FOR YOU V6 · polish, declutter, mobile redesign */
+.story-card,.chapter-navigation,.controls-note,.joystick,.interact-shortcut,.message-card,.letter-frame,.marker,.discoveries button,.primary-btn,.wish-options button{transition:transform .35s cubic-bezier(.22,.61,.36,1),opacity .35s ease,background .28s ease,border-color .28s ease,box-shadow .28s ease,filter .28s ease}
+.story-card.is-refreshing{animation:panelRefresh .46s cubic-bezier(.22,.61,.36,1)}
+@keyframes panelRefresh{0%{opacity:.58;transform:translateY(16px)}100%{opacity:1;transform:none}}
+.marker{display:flex;opacity:0;visibility:hidden;transform:translate(-50%,-50%) scale(.88);width:32px;min-width:32px;min-height:32px;padding:5px;border-radius:999px;justify-content:center;gap:0;border:1px solid rgba(255,235,223,.78);background:linear-gradient(160deg,rgba(78,44,85,.88),rgba(53,28,61,.92));box-shadow:0 0 0 5px rgba(255,217,227,.10),0 12px 30px rgba(14,8,25,.34);backdrop-filter:blur(10px)}
+.marker.show{opacity:.94;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+.marker.done{opacity:.76;background:linear-gradient(160deg,rgba(101,69,95,.82),rgba(70,44,79,.9))}
+.marker .symbol{font-size:15px;color:#ffe8c6}
+.marker.near{border-color:#fff5df;box-shadow:0 0 0 8px rgba(255,227,205,.15),0 18px 38px rgba(255,188,201,.28)}
+.marker:hover,.marker:focus-visible{transform:translate(-50%,-50%) scale(1.07);background:linear-gradient(160deg,rgba(123,72,118,.96),rgba(81,43,88,.94))}
+.chapter-navigation button{padding:6px 0}
+.chapter-navigation button span{transition:opacity .22s ease,transform .22s ease}
+.controls-note{backdrop-filter:blur(18px);background:linear-gradient(180deg,rgba(38,22,50,.90),rgba(31,17,39,.88));border:1px solid rgba(245,219,229,.18);box-shadow:0 12px 34px rgba(9,6,18,.28)}
+.story-card{box-shadow:0 30px 90px rgba(5,3,9,.48),0 0 0 1px rgba(255,247,228,.03) inset}
+.story-card::before{content:'';position:absolute;inset:1px;border-radius:16px;border:1px solid rgba(255,232,239,.06);pointer-events:none}
+.discoveries button{backdrop-filter:blur(10px)}
+.message-card,.letter-frame{backdrop-filter:blur(18px)}
+
+/* desktop declutter */
+@media(min-width:741px){
+  .marker span:not(.symbol){display:none}
+  .marker:hover,.marker:focus-visible{width:auto;min-width:32px;padding:7px 12px;gap:7px;justify-content:flex-start}
+  .marker:hover span:not(.symbol),.marker:focus-visible span:not(.symbol){display:inline}
+}
+
+/* Mobile-first world HUD redesign */
+@media(max-width:740px){
+  .site-header{position:relative;z-index:26;height:62px;padding:0 14px}
+  .brand{font-size:15px}
+  .brand i{font-size:22px}
+  .header-right{gap:8px}
+  .date{font-size:8px;padding:8px 11px;letter-spacing:.22em}
+  .sound-btn,.share-btn{width:36px;height:36px}
+  .intro{padding-top:232px;padding-bottom:26px}
+  .intro-content{max-width:none}
+  .name-card{border-radius:18px;background:linear-gradient(145deg,rgba(88,54,92,.42),rgba(28,18,37,.86));box-shadow:0 25px 60px rgba(8,5,14,.28)}
+  .journey{min-height:calc(100dvh - 62px)}
+  .chapter-navigation{left:50%;right:auto;top:72px;transform:translateX(-50%);flex-direction:row;gap:6px;align-items:center;padding:6px;border:1px solid rgba(247,223,230,.16);border-radius:999px;background:rgba(27,15,34,.78);backdrop-filter:blur(18px);box-shadow:0 14px 34px rgba(7,4,15,.24)}
+  .chapter-navigation button{flex-direction:row;gap:7px;padding:8px 10px;border-radius:999px;font-size:10px;letter-spacing:.04em;opacity:1;line-height:1}
+  .chapter-navigation button span{display:inline;white-space:nowrap}
+  .chapter-navigation button i{width:8px;height:8px}
+  .chapter-navigation button.active{background:linear-gradient(135deg,rgba(252,230,220,.16),rgba(232,177,198,.16));box-shadow:inset 0 0 0 1px rgba(255,240,229,.16)}
+  .controls-note{top:122px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:420px;padding:10px 13px;border-radius:999px;font-size:10px;line-height:1.25;justify-content:center}
+  .controls-note.hidden{display:none!important}
+  .story-card{left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);top:auto;transform:none;width:auto;max-height:min(47dvh,382px);padding:16px 16px 18px;border-radius:22px;background:linear-gradient(180deg,rgba(40,23,51,.93),rgba(21,14,30,.94));overflow-y:auto;scrollbar-width:none}
+  .story-card::-webkit-scrollbar{display:none}
+  .story-card::before{border-radius:21px}
+  .story-overline{font-size:8px;letter-spacing:.2em;margin-bottom:7px}
+  .story-card h2{font-size:clamp(29px,8vw,36px);line-height:1.02;margin-bottom:4px}
+  .story-card>p:not(.story-overline){font-size:12px;line-height:1.62;margin:9px 0 12px}
+  .story-progress{margin-bottom:10px}
+  .story-progress>span{font-size:9px;letter-spacing:.11em}
+  .discoveries{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+  .discoveries button{font-size:10.4px;min-height:42px;padding:9px 10px;border-radius:12px;line-height:1.24;justify-content:flex-start}
+  .discoveries button span{flex:0 0 14px;font-size:13px}
+  .story-actions{margin-top:2px}
+  .story-actions .primary-btn{width:100%;min-height:48px;padding:12px 15px;border-radius:14px;font-size:12px}
+  .joystick{position:absolute;left:14px;top:auto;bottom:calc(min(47dvh,382px) + env(safe-area-inset-bottom,0px) + 20px);z-index:18;display:flex;align-items:center;flex-direction:column;gap:8px;opacity:1}
+  .joystick-base{width:84px;height:84px;border:1px solid rgba(255,231,221,.46);background:linear-gradient(180deg,rgba(55,34,66,.84),rgba(28,19,37,.88));box-shadow:0 16px 34px rgba(6,3,13,.34),inset 0 0 0 1px rgba(255,247,240,.05);backdrop-filter:blur(18px)}
+  .joystick-knob{width:36px;height:36px;border:1px solid rgba(255,245,239,.9);background:linear-gradient(145deg,rgba(255,233,218,.92),rgba(233,171,199,.85));box-shadow:0 10px 20px rgba(238,176,205,.28)}
+  .joystick span{font-size:8px;letter-spacing:.16em;color:#f2d6db}
+  .interact-shortcut{right:14px;bottom:calc(min(47dvh,382px) + env(safe-area-inset-bottom,0px) + 24px);min-height:44px;padding:0 14px;border-radius:14px;background:linear-gradient(135deg,rgba(44,27,56,.92),rgba(69,41,74,.9));border:1px solid rgba(255,231,223,.18);box-shadow:0 14px 32px rgba(8,5,15,.30);font-size:11px}
+  .interact-shortcut span{white-space:nowrap;max-width:30vw;overflow:hidden;text-overflow:ellipsis}
+  .marker{width:24px;min-width:24px;min-height:24px;padding:0;border:0;background:transparent;box-shadow:0 0 0 8px rgba(255,219,228,.09),0 0 20px rgba(255,178,198,.18)}
+  .marker .symbol{font-size:12px}
+  .marker span:not(.symbol){display:none!important}
+  .marker.near{box-shadow:0 0 0 10px rgba(255,228,212,.15),0 0 28px rgba(255,198,143,.28)}
+  .message-card{padding:34px 24px;border-radius:22px}
+  .message-card>p:not(.message-overline){font-size:15px;line-height:1.72}
+  .letter-layer{padding:58px 10px 24px}
+  .letter-frame{border-radius:24px}
+  .letter-paper{padding:34px 22px}
+  .letter-paper h2{font-size:34px}
+  .letter-paper p{font-size:15px;line-height:1.74}
+}
+@media(max-width:420px){
+  .chapter-navigation{width:calc(100% - 24px);justify-content:space-between}
+  .chapter-navigation button{padding:8px 7px;font-size:9.5px;gap:6px}
+  .controls-note{top:118px;width:calc(100% - 24px)}
+  .story-card{max-height:min(49dvh,390px)}
+  .interact-shortcut{right:12px;bottom:calc(min(49dvh,390px) + env(safe-area-inset-bottom,0px) + 22px)}
+  .joystick{left:12px;bottom:calc(min(49dvh,390px) + env(safe-area-inset-bottom,0px) + 18px)}
+}
+@media(max-width:360px){
+  .chapter-navigation button span{font-size:9px}
+  .discoveries button{font-size:10px;padding:8px 8px}
+  .story-card h2{font-size:27px}
+  .joystick-base{width:78px;height:78px}
+  .interact-shortcut{padding:0 12px}
+}
